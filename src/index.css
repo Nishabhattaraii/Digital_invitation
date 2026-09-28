@@ -1,0 +1,157 @@
+@import "tailwindcss";
+
+:root {
+  /* Warm Ivory / Cream Backgrounds (approx. 65%) */
+  --wedding-bg: #FAF6F0;
+  --wedding-card-bg: #FFFFFF;
+  --wedding-cream-surface: #F5EFEB;
+  --wedding-ivory-tint: #FDFBF8;
+
+  /* Rich Burgundy / Deep Wine (approx. 25%) */
+  --primary-burgundy: #5E121E;
+  --primary-burgundy-deep: #4A0812;
+  --primary-burgundy-header: #4E0B14;
+  --primary-burgundy-footer: #4E0B14;
+  --primary-burgundy-border: #5E121E;
+  --primary-burgundy-soft: #F9ECEE;
+
+  /* Cream / Beige & Delicate Metallic Gold Hairlines */
+  --border-cream: #E8DFC8;
+  --border-burgundy: #5E121E;
+  --primary-gold: #B89352;
+  --primary-gold-light: #D4AF37;
+
+  /* Typography Colors */
+  --text-primary: #381A20;       /* Rich deep wine espresso */
+  --text-secondary: #58333B;     /* Warm dark burgundy */
+  --text-muted: #7E5860;         /* Muted dusty plum */
+
+  /* Fonts */
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-display: 'Cinzel Decorative', 'Cormorant Garamond', serif;
+  --font-devanagari: 'Noto Serif Devanagari', 'Rozha One', serif;
+  --font-calligraphy: 'Great Vibes', cursive;
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--wedding-bg);
+  background-image: 
+    radial-gradient(rgba(184, 147, 82, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom Typography Helpers */
+.font-serif-cormorant {
+  font-family: var(--font-serif);
+}
+
+.font-display-cinzel {
+  font-family: var(--font-display);
+}
+
+.font-devanagari {
+  font-family: var(--font-devanagari);
+}
+
+.font-calligraphy {
+  font-family: var(--font-calligraphy);
+}
+
+/* Luxury Burgundy Bordered Stationery Card Frame */
+.stationery-card {
+  position: relative;
+  background: #FFFFFF;
+  border: 1.5px solid var(--primary-burgundy-border);
+  box-shadow: 0 8px 32px -8px rgba(78, 11, 20, 0.07), 0 1px 4px rgba(0, 0, 0, 0.02);
+}
+
+.stationery-card-inset::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  right: 7px;
+  bottom: 7px;
+  border: 1px solid rgba(184, 147, 82, 0.45);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Legacy card-frame compatibility */
+.card-frame {
+  position: relative;
+  background: #FFFFFF;
+  border: 1.5px solid var(--primary-burgundy-border);
+  box-shadow: 0 8px 32px -8px rgba(78, 11, 20, 0.07), 0 1px 4px rgba(0, 0, 0, 0.02);
+}
+
+.card-frame::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  right: 7px;
+  bottom: 7px;
+  border: 1px solid rgba(184, 147, 82, 0.45);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Rich Burgundy Button */
+.btn-burgundy {
+  background-color: var(--primary-burgundy);
+  color: #FFFFFF;
+  border: 1px solid rgba(184, 147, 82, 0.5);
+  transition: all 0.3s ease;
+}
+
+.btn-burgundy:hover {
+  background-color: var(--primary-burgundy-deep);
+  box-shadow: 0 4px 16px -2px rgba(94, 18, 30, 0.4);
+}
+
+/* Subtle Shimmer for Gold Accents */
+@keyframes subtleShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-gold {
+  background: linear-gradient(90deg, #9e814a 0%, #d6c08d 50%, #9e814a 100%);
+  background-size: 200% 100%;
+  animation: subtleShimmer 6s infinite linear;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #FAF6F0;
+}
+::-webkit-scrollbar-thumb {
+  background: #5E121E;
+  border-radius: 3px;
+}
