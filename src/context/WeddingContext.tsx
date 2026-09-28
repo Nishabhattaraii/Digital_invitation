@@ -25,7 +25,7 @@ interface WeddingContextType {
 
 const STORAGE_KEY = 'nepali_wedding_invitation_data_v1';
 const AUTH_KEY = 'nepali_wedding_admin_authenticated';
-const ADMIN_PASSCODE = 'nepaliwedding2026';
+const ADMIN_PASSCODE = import.meta.env.VITE_ADMIN_PASSCODE || '1010';
 
 const WeddingContext = createContext<WeddingContextType | undefined>(undefined);
 
@@ -123,7 +123,7 @@ export const WeddingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const login = (passcode: string): boolean => {
-    if (passcode.trim() === ADMIN_PASSCODE || passcode.trim() === 'admin123') {
+    if (passcode.trim() === ADMIN_PASSCODE) {
       setIsAuthenticated(true);
       localStorage.setItem(AUTH_KEY, 'true');
       showToast('Authenticated as Wedding Administrator');

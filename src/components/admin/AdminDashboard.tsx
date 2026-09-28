@@ -123,25 +123,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 className="w-full px-4 py-2.5 rounded-lg border border-stone-300 focus:outline-none focus:border-[var(--primary-red)] focus:ring-1 focus:ring-[var(--primary-red)] text-sm"
                 autoFocus
               />
-              <p className="text-[11px] text-stone-400 mt-1.5 flex items-center justify-between">
-                <span>Default Passcode: <strong>nepaliwedding2026</strong></span>
-              </p>
             </div>
 
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setPasscodeInput('nepaliwedding2026');
-                  login('nepaliwedding2026');
-                }}
-                className="flex-1 py-2.5 rounded-lg border border-stone-200 text-xs text-stone-600 hover:bg-stone-50"
-              >
-                Auto Fill &amp; Login
-              </button>
+            <div className="pt-2">
               <button
                 type="submit"
-                className="flex-1 py-2.5 rounded-lg bg-[var(--primary-red)] hover:bg-[var(--primary-red-deep)] text-white text-xs font-semibold uppercase tracking-wider shadow-xs transition-colors"
+                className="w-full py-2.5 rounded-lg bg-[#5E121E] hover:bg-[#4E0B14] text-white text-xs font-semibold uppercase tracking-wider shadow-sm transition-colors cursor-pointer"
               >
                 Sign In
               </button>
