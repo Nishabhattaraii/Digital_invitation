@@ -200,20 +200,64 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     reader.readAsDataURL(file);
   };
 
-  // Handle Hero Illustration Upload
+  // Handle Hero Couple Portrait Upload
   const handleHeroUpload = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      const result = e.target?.result as string;
-      setFormData((prev) => ({
-        ...prev,
-        appearance: { ...prev.appearance, heroIllustrationUrl: result },
-      }));
-      updateData((prev) => ({
-        ...prev,
-        appearance: { ...prev.appearance, heroIllustrationUrl: result },
-      }));
-      showToast('Hero illustration updated!');
+      const dataUrl = e.target?.result as string;
+      const img = new window.Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 1200;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.88);
+          setFormData((prev) => ({
+            ...prev,
+            appearance: { ...prev.appearance, heroIllustrationUrl: compressed },
+          }));
+          updateData((prev) => ({
+            ...prev,
+            appearance: { ...prev.appearance, heroIllustrationUrl: compressed },
+          }));
+        } else {
+          setFormData((prev) => ({
+            ...prev,
+            appearance: { ...prev.appearance, heroIllustrationUrl: dataUrl },
+          }));
+          updateData((prev) => ({
+            ...prev,
+            appearance: { ...prev.appearance, heroIllustrationUrl: dataUrl },
+          }));
+        }
+        showToast('First page couple portrait photo updated successfully!', 'success');
+      };
+      img.onerror = () => {
+        setFormData((prev) => ({
+          ...prev,
+          appearance: { ...prev.appearance, heroIllustrationUrl: dataUrl },
+        }));
+        updateData((prev) => ({
+          ...prev,
+          appearance: { ...prev.appearance, heroIllustrationUrl: dataUrl },
+        }));
+        showToast('First page couple portrait photo updated successfully!', 'success');
+      };
+      img.src = dataUrl;
     };
     reader.readAsDataURL(file);
   };
@@ -485,6 +529,107 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       }
                       className="w-full px-3 py-2 border rounded-lg text-sm bg-white font-devanagari"
                     />
+                  </div>
+                </div>
+
+                {/* First Page (Hero) Couple Portrait Photo */}
+                <div className="p-4 sm:p-5 rounded-xl border-2 border-[#5E121E]/20 bg-[#FAF6F0] space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#5E121E] flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#5E121E]" />
+                      First Page (Hero) Couple Portrait Photo
+                    </h4>
+                    <span className="text-[10px] text-[#B89352] font-semibold uppercase tracking-wider bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                      Displayed on Main Invitation
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 p-4 bg-white rounded-xl border border-stone-200">
+                    {/* Circular preview matching Hero medallion */}
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-[#B89352] p-1 bg-[#F5EDE1] shrink-0 shadow-sm overflow-hidden">
+                      <img
+                        src={formData.appearance.heroIllustrationUrl || '/images/hero-couple.jpg'}
+                        alt="Hero Couple Portrait"
+                        className="w-full h-full object-cover object-top rounded-full"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/images/hero-couple.jpg';
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex-1 space-y-2.5 w-full text-center sm:text-left">
+                      <div>
+                        <span className="block text-xs font-bold text-stone-800">
+                          First Page Couple Portrait (Circular Medallion)
+                        </span>
+                        <p className="text-[11px] text-stone-500 mt-0.5">
+                          This photo appears inside the gold ring on the first page of the wedding invitation.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+                        <label className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#5E121E] hover:bg-[#4A0812] text-white rounded-lg text-xs font-semibold uppercase tracking-wider cursor-pointer shadow-xs transition-colors">
+                          <Upload className="w-3.5 h-3.5 text-amber-200" />
+                          <span>Upload Couple Photo</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleHeroUpload(file);
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {formData.appearance.heroIllustrationUrl &&
+                          formData.appearance.heroIllustrationUrl !== '/images/hero-couple.jpg' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  appearance: { ...prev.appearance, heroIllustrationUrl: '/images/hero-couple.jpg' },
+                                }));
+                                updateData((prev) => ({
+                                  ...prev,
+                                  appearance: { ...prev.appearance, heroIllustrationUrl: '/images/hero-couple.jpg' },
+                                }));
+                                showToast('Reset couple photo to default', 'info');
+                              }}
+                              className="px-3 py-2 border border-stone-300 text-stone-600 hover:bg-stone-50 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                            >
+                              Reset to Default
+                            </button>
+                          )}
+                      </div>
+
+                      <div className="pt-1">
+                        <input
+                          type="text"
+                          value={
+                            formData.appearance.heroIllustrationUrl?.startsWith('data:')
+                              ? '[Custom uploaded photo file]'
+                              : formData.appearance.heroIllustrationUrl || ''
+                          }
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (!val.startsWith('[')) {
+                              setFormData((prev) => ({
+                                ...prev,
+                                appearance: { ...prev.appearance, heroIllustrationUrl: val },
+                              }));
+                              updateData((prev) => ({
+                                ...prev,
+                                appearance: { ...prev.appearance, heroIllustrationUrl: val },
+                              }));
+                            }
+                          }}
+                          placeholder="Or paste image URL (e.g. /images/hero-couple.jpg)"
+                          className="w-full px-3 py-1.5 border border-stone-200 rounded-lg text-xs bg-stone-50 text-stone-700"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
