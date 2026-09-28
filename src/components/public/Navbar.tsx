@@ -48,16 +48,28 @@ export const Navbar: React.FC = () => {
           onClick={(e) => handleNavClick(e, '#hero')}
           className="flex items-center gap-2.5 group cursor-pointer shrink-0"
         >
-          <div className="w-8 h-8 rounded-full border border-[#D4AF37]/80 flex items-center justify-center bg-[#5E121E] shadow-2xs group-hover:border-white transition-colors">
-            <span className="font-serif-cormorant font-bold text-sm text-[#FAF6F0]">
-              S<span className="text-[#D4AF37] font-sans text-[10px] mx-0.5">&amp;</span>P
-            </span>
-          </div>
-          <div className="hidden sm:block text-left">
-            <span className="block font-serif-cormorant font-semibold text-sm tracking-[0.2em] text-[#FAF6F0] uppercase">
-              {data.hero.groomName.split(' ')[1] || 'Siddhartha'} &amp; {data.hero.brideName.split(' ')[1] || 'Prashamsa'}
-            </span>
-          </div>
+          {(() => {
+            const groomPart = (data.hero.groomName || 'Siddhartha').replace(/^Dr\.\s*/i, '').trim();
+            const bridePart = (data.hero.brideName || 'Prashamsa').replace(/^Dr\.\s*/i, '').trim();
+            const gInitial = groomPart.charAt(0).toUpperCase() || 'S';
+            const bInitial = bridePart.charAt(0).toUpperCase() || 'P';
+            const gFirst = groomPart.split(' ')[0] || 'Siddhartha';
+            const bFirst = bridePart.split(' ')[0] || 'Prashamsa';
+            return (
+              <>
+                <div className="w-8 h-8 rounded-full border border-[#D4AF37]/80 flex items-center justify-center bg-[#5E121E] shadow-2xs group-hover:border-white transition-colors">
+                  <span className="font-serif-cormorant font-bold text-sm text-[#FAF6F0]">
+                    {gInitial}<span className="text-[#D4AF37] font-sans text-[10px] mx-0.5">&amp;</span>{bInitial}
+                  </span>
+                </div>
+                <div className="hidden sm:block text-left">
+                  <span className="block font-serif-cormorant font-semibold text-sm tracking-[0.2em] text-[#FAF6F0] uppercase">
+                    {gFirst} &amp; {bFirst}
+                  </span>
+                </div>
+              </>
+            );
+          })()}
         </a>
 
         {/* Desktop Navigation Links */}

@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { WeddingData } from '../types/wedding';
 import { defaultWeddingData } from '../data/defaultData';
+import { saveToIndexedDb, loadFromIndexedDb, broadcastDataChange } from '../utils/storageHelper';
 
 interface ToastMessage {
   id: string;
@@ -27,6 +28,62 @@ const STORAGE_KEY = 'nepali_wedding_invitation_data_v1';
 const AUTH_KEY = 'nepali_wedding_admin_authenticated';
 const ADMIN_PASSCODE = import.meta.env.VITE_ADMIN_PASSCODE || '1010';
 
+function mergeWeddingData(base: WeddingData, incoming: Partial<WeddingData>): WeddingData {
+  return {
+    ...base,
+    ...incoming,
+    hero: {
+      ...base.hero,
+      ...(incoming.hero || {}),
+    },
+    couple: {
+      ...base.couple,
+      ...(incoming.couple || {}),
+      groom: {
+        ...base.couple.groom,
+        ...(incoming.couple?.groom || {}),
+      },
+      bride: {
+        ...base.couple.bride,
+        ...(incoming.couple?.bride || {}),
+      },
+    },
+    appearance: {
+      ...base.appearance,
+      ...(incoming.appearance || {}),
+    },
+    events: {
+      ...base.events,
+      ...(incoming.events || {}),
+      wedding: {
+        ...base.events.wedding,
+        ...(incoming.events?.wedding || {}),
+      },
+      reception: {
+        ...base.events.reception,
+        ...(incoming.events?.reception || {}),
+      },
+    },
+    music: {
+      ...base.music,
+      ...(incoming.music || {}),
+    },
+    calendar: {
+      ...base.calendar,
+      ...(incoming.calendar || {}),
+    },
+    family: {
+      ...base.family,
+      ...(incoming.family || {}),
+    },
+    invitation: {
+      ...base.invitation,
+      ...(incoming.invitation || {}),
+    },
+    gallery: incoming.gallery && incoming.gallery.length > 0 ? incoming.gallery : base.gallery,
+  };
+}
+
 const WeddingContext = createContext<WeddingContextType | undefined>(undefined);
 
 export const WeddingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -35,40 +92,22 @@ export const WeddingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        return {
-          ...defaultWeddingData,
-          ...parsed,
-          events: {
-            ...defaultWeddingData.events,
-            ...(parsed.events || {}),
-          },
-          music: {
-            ...defaultWeddingData.music,
-            ...(parsed.music || {}),
-          },
-          appearance: {
-            ...defaultWeddingData.appearance,
-            ...(parsed.appearance || {}),
-          },
-          couple: {
-            ...defaultWeddingData.couple,
-            ...(parsed.couple || {}),
-            groom: {
-              ...defaultWeddingData.couple.groom,
-              ...(parsed.couple?.groom || {}),
-            },
-            bride: {
-              ...defaultWeddingData.couple.bride,
-              ...(parsed.couple?.bride || {}),
-            },
-          },
-        };
+        return mergeWeddingData(defaultWeddingData, parsed);
       }
     } catch (e) {
-      console.error('Error loading saved wedding data:', e);
+      console.error('Error loading saved wedding data from localStorage:', e);
     }
     return defaultWeddingData;
   });
+
+  // On mount, check if IndexedDB has more complete/recent data
+  useEffect(() => {
+    loadFromIndexedDb().then((idbData) => {
+      if (idbData) {
+        setData((prev) => mergeWeddingData(prev, idbData));
+      }
+    });
+  }, []);
 
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -91,18 +130,55 @@ export const WeddingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [data.appearance]);
 
-  // Persist data changes to localStorage
-  const updateData = (updater: (prev: WeddingData) => WeddingData) => {
+  // Cross-tab and window synchronization
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setData((prev) => mergeWeddingData(prev, parsed));
+        } catch (err) {
+          console.error('Error parsing storage event payload:', err);
+        }
+      }
+    };
+
+    const handleCustomSync = (e: Event) => {
+      const customEvent = e as CustomEvent<WeddingData>;
+      if (customEvent.detail) {
+        setData((prev) => mergeWeddingData(prev, customEvent.detail));
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('wedding_data_updated', handleCustomSync);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('wedding_data_updated', handleCustomSync);
+    };
+  }, []);
+
+  // Persist data changes to both localStorage and IndexedDB
+  const updateData = useCallback((updater: (prev: WeddingData) => WeddingData) => {
     setData((prev) => {
       const next = updater(prev);
+      
+      // Save to localStorage (with quota safety)
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       } catch (e) {
-        console.error('Failed to save to localStorage:', e);
+        console.warn('localStorage quota reached, saving full data into IndexedDB:', e);
       }
+
+      // Always save full data to IndexedDB
+      saveToIndexedDb(next).catch((err) => console.error('IndexedDB save failed:', err));
+
+      // Broadcast to other components/tabs
+      broadcastDataChange(next);
+
       return next;
     });
-  };
+  }, []);
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     const id = Date.now().toString() + Math.random().toString(36).substring(2, 5);
@@ -119,6 +195,8 @@ export const WeddingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch (e) {
       console.error(e);
     }
+    saveToIndexedDb(defaultWeddingData).catch(console.error);
+    broadcastDataChange(defaultWeddingData);
     showToast('Reset all settings to default Nepali wedding details');
   };
 

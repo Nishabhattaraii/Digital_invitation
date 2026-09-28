@@ -18,6 +18,8 @@ export interface EventInfo {
   id: 'wedding' | 'reception';
   title: string;
   nepaliTitle?: string;
+  nepaliDate?: string;
+  muhurat?: string;
   date: string; // e.g. "December 5, 2026"
   dayOfWeek?: string;
   time: string; // e.g. "[Add Time]" or "10:00 AM"

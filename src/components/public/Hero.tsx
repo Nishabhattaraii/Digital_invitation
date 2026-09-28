@@ -78,7 +78,18 @@ export const Hero: React.FC = () => {
 
             {/* Top Center: Circular Laurel Wreath Monogram */}
             <div className="mb-4 relative z-10">
-              <BotanicalMonogramWreath initials="S P" size={72} />
+              <BotanicalMonogramWreath
+                initials={`${(data.hero.groomName || 'Siddhartha')
+                  .replace(/^Dr\.\s*/i, '')
+                  .trim()
+                  .charAt(0)
+                  .toUpperCase() || 'S'} ${(data.hero.brideName || 'Prashamsa')
+                  .replace(/^Dr\.\s*/i, '')
+                  .trim()
+                  .charAt(0)
+                  .toUpperCase() || 'P'}`}
+                size={72}
+              />
             </div>
 
             {/* Sacred Inscription & Intro */}
@@ -109,7 +120,7 @@ export const Hero: React.FC = () => {
             </div>
 
             <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.25em] text-[#520C17] font-medium my-4">
-              Join together in holy matrimony • शुभ विवाह
+              Join together in holy matrimony • {data.hero.devanagariGreeting || 'शुभ विवाह'}
             </p>
 
             {/* Couple Portrait Ring Medallion */}
@@ -137,10 +148,10 @@ export const Hero: React.FC = () => {
                   Date
                 </span>
                 <span className="font-serif-cormorant font-semibold text-xs sm:text-sm text-[#381A20] mt-0.5">
-                  Dec 5, 2026
+                  {data.events.wedding.date || 'Dec 5, 2026'}
                 </span>
                 <span className="text-[9px] font-devanagari text-[#632029]">
-                  मंसिर २०, २०८३
+                  {data.events.wedding.nepaliDate || 'मंसिर २०, २०८३'}
                 </span>
               </div>
 
@@ -151,10 +162,10 @@ export const Hero: React.FC = () => {
                   Time
                 </span>
                 <span className="font-serif-cormorant font-semibold text-xs sm:text-sm text-[#381A20] mt-0.5">
-                  10:00 AM
+                  {data.events.wedding.time || '10:00 AM'}
                 </span>
                 <span className="text-[9px] text-[#58333B]">
-                  Auspicious Lagna
+                  {data.events.wedding.muhurat || 'Auspicious Lagna'}
                 </span>
               </div>
 
@@ -165,12 +176,10 @@ export const Hero: React.FC = () => {
                   Venue
                 </span>
                 <span className="font-serif-cormorant font-semibold text-xs sm:text-sm text-[#381A20] mt-0.5 truncate max-w-[105px]">
-                  {data.events.wedding.venue.startsWith('[')
-                    ? 'Kathmandu'
-                    : data.events.wedding.venue.split(',')[0] || 'Kathmandu'}
+                  {data.events.wedding.venue.split(',')[0] || 'Kathmandu'}
                 </span>
                 <span className="text-[9px] text-[#58333B] truncate max-w-[90px]">
-                  Kathmandu, NP
+                  {data.events.wedding.address || 'Kathmandu, NP'}
                 </span>
               </div>
             </div>

@@ -22,6 +22,7 @@ import {
   Lock,
   Music,
 } from 'lucide-react';
+import { compressImage } from '../../utils/imageCompressor';
 
 interface AdminDashboardProps {
   isRoute?: boolean;
@@ -47,6 +48,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   } = useWedding();
 
   const handleClose = () => {
+    // Automatically save any pending changes before navigating back to the main invitation
+    updateData(() => formData);
     if (onNavigateHome) {
       onNavigateHome();
     } else {
@@ -178,136 +181,96 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     );
   }
 
-  // Handle Photo Upload as Base64 Data URL
-  const handlePhotoUpload = (slotIndex: number, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
+  // Handle Gallery Photo Upload with Automatic Canvas Compression
+  const handlePhotoUpload = async (slotIndex: number, file: File) => {
+    try {
+      const compressed = await compressImage(file, 1200, 0.84);
       const updatedGallery = [...formData.gallery];
       if (updatedGallery[slotIndex]) {
         updatedGallery[slotIndex] = {
           ...updatedGallery[slotIndex],
-          url: result,
+          url: compressed,
         };
-        setFormData({ ...formData, gallery: updatedGallery });
+        setFormData((prev) => ({ ...prev, gallery: updatedGallery }));
         updateData((prev) => ({
           ...prev,
           gallery: updatedGallery,
         }));
-        showToast(`Photo slot #${slotIndex + 1} updated successfully!`);
+        showToast(`Photo slot #${slotIndex + 1} updated and saved!`, 'success');
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
+      showToast('Error processing gallery image', 'error');
+    }
   };
 
-  // Handle Hero Couple Portrait Upload
-  const handleHeroUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      const img = new window.Image();
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-        const maxDim = 1200;
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressed = canvas.toDataURL('image/jpeg', 0.88);
-          setFormData((prev) => ({
-            ...prev,
-            appearance: { ...prev.appearance, heroIllustrationUrl: compressed },
-          }));
-          updateData((prev) => ({
-            ...prev,
-            appearance: { ...prev.appearance, heroIllustrationUrl: compressed },
-          }));
-        } else {
-          setFormData((prev) => ({
-            ...prev,
-            appearance: { ...prev.appearance, heroIllustrationUrl: dataUrl },
-          }));
-          updateData((prev) => ({
-            ...prev,
-            appearance: { ...prev.appearance, heroIllustrationUrl: dataUrl },
-          }));
-        }
-        showToast('First page couple portrait photo updated successfully!', 'success');
-      };
-      img.onerror = () => {
-        setFormData((prev) => ({
-          ...prev,
-          appearance: { ...prev.appearance, heroIllustrationUrl: dataUrl },
-        }));
-        updateData((prev) => ({
-          ...prev,
-          appearance: { ...prev.appearance, heroIllustrationUrl: dataUrl },
-        }));
-        showToast('First page couple portrait photo updated successfully!', 'success');
-      };
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
+  // Handle Hero Couple Portrait Upload with Canvas Compression
+  const handleHeroUpload = async (file: File) => {
+    try {
+      const compressed = await compressImage(file, 1200, 0.85);
+      setFormData((prev) => ({
+        ...prev,
+        appearance: { ...prev.appearance, heroIllustrationUrl: compressed },
+      }));
+      updateData((prev) => ({
+        ...prev,
+        appearance: { ...prev.appearance, heroIllustrationUrl: compressed },
+      }));
+      showToast('First page couple portrait photo updated and saved!', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('Error uploading couple portrait photo', 'error');
+    }
   };
 
-  // Handle Groom Photo Upload as Base64 Data URL
-  const handleGroomPhotoUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
+  // Handle Groom Photo Upload with Canvas Compression
+  const handleGroomPhotoUpload = async (file: File) => {
+    try {
+      const compressed = await compressImage(file, 900, 0.84);
       setFormData((prev) => ({
         ...prev,
         couple: {
           ...prev.couple,
-          groom: { ...prev.couple.groom, image: result },
+          groom: { ...prev.couple.groom, image: compressed },
         },
       }));
       updateData((prev) => ({
         ...prev,
         couple: {
           ...prev.couple,
-          groom: { ...prev.couple.groom, image: result },
+          groom: { ...prev.couple.groom, image: compressed },
         },
       }));
-      showToast('Groom photo updated successfully!');
-    };
-    reader.readAsDataURL(file);
+      showToast('Groom photo updated and saved!', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('Error uploading groom photo', 'error');
+    }
   };
 
-  // Handle Bride Photo Upload as Base64 Data URL
-  const handleBridePhotoUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
+  // Handle Bride Photo Upload with Canvas Compression
+  const handleBridePhotoUpload = async (file: File) => {
+    try {
+      const compressed = await compressImage(file, 900, 0.84);
       setFormData((prev) => ({
         ...prev,
         couple: {
           ...prev.couple,
-          bride: { ...prev.couple.bride, image: result },
+          bride: { ...prev.couple.bride, image: compressed },
         },
       }));
       updateData((prev) => ({
         ...prev,
         couple: {
           ...prev.couple,
-          bride: { ...prev.couple.bride, image: result },
+          bride: { ...prev.couple.bride, image: compressed },
         },
       }));
-      showToast('Bride photo updated successfully!');
-    };
-    reader.readAsDataURL(file);
+      showToast('Bride photo updated and saved!', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('Error uploading bride photo', 'error');
+    }
   };
 
   // Handle Wedding Music Audio Upload
@@ -323,7 +286,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         ...prev,
         music: { ...prev.music, audioUrl: result },
       }));
-      showToast('Custom audio file uploaded successfully!');
+      showToast('Custom audio file uploaded and saved!', 'success');
     };
     reader.readAsDataURL(file);
   };
@@ -1125,7 +1088,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs text-stone-600 mb-1">Date</label>
+                      <label className="block text-xs text-stone-600 mb-1">Date (English)</label>
                       <input
                         type="text"
                         value={formData.events.wedding.date}
@@ -1142,7 +1105,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-stone-600 mb-1">Time (e.g. [Add Time])</label>
+                      <label className="block text-xs text-stone-600 mb-1">Nepali Date (e.g. मंसिर २०, २०८३)</label>
+                      <input
+                        type="text"
+                        value={formData.events.wedding.nepaliDate || ''}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            events: {
+                              ...formData.events,
+                              wedding: { ...formData.events.wedding, nepaliDate: e.target.value },
+                            },
+                          })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg text-sm font-devanagari"
+                        placeholder="मंसिर २०, २०८३"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-stone-600 mb-1">Time (e.g. 10:00 AM)</label>
                       <input
                         type="text"
                         value={formData.events.wedding.time}
@@ -1156,6 +1140,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           })
                         }
                         className="w-full px-3 py-2 border rounded-lg text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-stone-600 mb-1">Muhurat / Timing Subtitle</label>
+                      <input
+                        type="text"
+                        value={formData.events.wedding.muhurat || ''}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            events: {
+                              ...formData.events,
+                              wedding: { ...formData.events.wedding, muhurat: e.target.value },
+                            },
+                          })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                        placeholder="Auspicious Lagna"
                       />
                     </div>
                   </div>
@@ -2111,9 +2113,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <input
                         type="text"
                         value={
-                          formData.appearance.heroIllustrationUrl.startsWith('data:')
+                          formData.appearance.heroIllustrationUrl?.startsWith('data:')
                             ? '[Uploaded Custom Illustration]'
-                            : formData.appearance.heroIllustrationUrl
+                            : formData.appearance.heroIllustrationUrl || ''
                         }
                         onChange={(e) => {
                           if (!e.target.value.startsWith('[')) {
