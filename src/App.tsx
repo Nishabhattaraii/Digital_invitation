@@ -35,7 +35,7 @@ export function AppContent() {
   // Dedicated /admin SPA Route
   if (isAdminRoute) {
     return (
-      <div className="min-h-screen bg-stone-900 text-stone-100 flex flex-col">
+      <div className="min-h-screen bg-[#2A080D] flex flex-col text-stone-800">
         <AdminDashboard isRoute={true} onNavigateHome={() => navigateTo('/')} />
         <ToastContainer />
       </div>

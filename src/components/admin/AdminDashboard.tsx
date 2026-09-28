@@ -10,6 +10,7 @@ import {
   Calendar,
   Palette,
   Eye,
+  EyeOff,
   LogOut,
   Save,
   RotateCcw,
@@ -70,6 +71,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     | 'backup'
   >('couple');
 
+  const [showPasscode, setShowPasscode] = useState(false);
+  const [loginError, setLoginError] = useState('');
   const [passcodeInput, setPasscodeInput] = useState('');
   const [formData, setFormData] = useState(data);
 
@@ -84,15 +87,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   if (!isAuthenticated) {
     const handleLoginSubmit = (e: React.FormEvent) => {
       e.preventDefault();
-      login(passcodeInput);
+      const success = login(passcodeInput);
+      if (!success) {
+        setLoginError('Incorrect passcode. Please try again.');
+      } else {
+        setLoginError('');
+      }
     };
 
     return (
       <div className={`${isRoute ? 'min-h-screen' : 'fixed inset-0 z-50'} bg-[#2A080D]/90 backdrop-blur-md flex items-center justify-center p-4`}>
-        <div className="bg-[#FAF6F0] rounded-2xl max-w-md w-full p-6 sm:p-8 shadow-2xl border-2 border-[#5E121E]/30 relative">
+        <div className="bg-[#FAF6F0] rounded-2xl max-w-md w-full p-6 sm:p-8 shadow-2xl border-2 border-[#5E121E]/30 relative text-stone-800">
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 p-1"
+            className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 p-1 cursor-pointer"
             title="Return to wedding invitation"
           >
             <X className="w-5 h-5" />
@@ -102,27 +110,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div className="w-14 h-14 rounded-full bg-[var(--primary-red-soft)] border border-[var(--primary-red)]/30 flex items-center justify-center mx-auto mb-3 text-[var(--primary-red)]">
               <Lock className="w-6 h-6" />
             </div>
-            <h3 className="font-serif-cormorant font-bold text-2xl text-stone-800">
+            <h3 className="font-serif-cormorant font-bold text-2xl text-stone-900">
               Admin Authentication
             </h3>
-            <p className="text-xs text-stone-500 mt-1">
+            <p className="text-xs text-stone-600 mt-1">
               Please enter the administrator passcode to customize the wedding website.
             </p>
           </div>
 
           <form onSubmit={handleLoginSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs uppercase tracking-wider text-stone-500 font-medium mb-1">
+              <label className="block text-xs uppercase tracking-wider text-stone-700 font-semibold mb-1">
                 Passcode
               </label>
-              <input
-                type="password"
-                value={passcodeInput}
-                onChange={(e) => setPasscodeInput(e.target.value)}
-                placeholder="Enter passcode"
-                className="w-full px-4 py-2.5 rounded-lg border border-stone-300 focus:outline-none focus:border-[var(--primary-red)] focus:ring-1 focus:ring-[var(--primary-red)] text-sm"
-                autoFocus
-              />
+              <div className="relative">
+                <input
+                  type={showPasscode ? 'text' : 'password'}
+                  value={passcodeInput}
+                  onChange={(e) => {
+                    setPasscodeInput(e.target.value);
+                    if (loginError) setLoginError('');
+                  }}
+                  placeholder="Enter passcode"
+                  className={`w-full pl-4 pr-11 py-2.5 rounded-lg border ${
+                    loginError ? 'border-red-500 bg-red-50/40' : 'border-stone-300 bg-white'
+                  } text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-[#5E121E] focus:ring-1 focus:ring-[#5E121E] text-base sm:text-sm font-medium shadow-2xs transition-colors`}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasscode(!showPasscode)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-800 p-1.5 cursor-pointer rounded-md hover:bg-stone-100 transition-colors"
+                  title={showPasscode ? 'Hide passcode' : 'Show passcode'}
+                >
+                  {showPasscode ? <EyeOff className="w-4 h-4 text-stone-600" /> : <Eye className="w-4 h-4 text-stone-600" />}
+                </button>
+              </div>
+
+              {loginError && (
+                <p className="text-xs text-red-600 font-medium mt-1.5 flex items-center gap-1">
+                  <span>{loginError}</span>
+                </p>
+              )}
             </div>
 
             <div className="pt-2">
