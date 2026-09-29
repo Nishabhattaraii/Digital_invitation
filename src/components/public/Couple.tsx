@@ -7,7 +7,7 @@ export const Couple: React.FC = () => {
   const { groom, bride } = data.couple;
 
   return (
-    <section id="couple" className="py-16 sm:py-24 px-4 max-w-5xl mx-auto relative">
+    <section id="couple" className="py-16 sm:py-24 px-4 max-w-5xl mx-auto relative scroll-mt-16 sm:scroll-mt-20">
       {/* Section Header */}
       <div className="text-center mb-10 sm:mb-14">
         <span className="text-[10px] uppercase tracking-[0.3em] text-[#5E121E] font-semibold block mb-2">

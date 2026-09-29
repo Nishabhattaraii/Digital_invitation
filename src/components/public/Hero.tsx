@@ -17,7 +17,7 @@ export const Hero: React.FC = () => {
       if (target) {
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-    }, 50);
+    }, 80);
   };
 
   return (
