@@ -4,7 +4,8 @@ import { Play, Pause } from 'lucide-react';
 
 export const WeddingAudio: React.FC = () => {
   const { data, setIsAudioPlaying } = useWedding();
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const userManuallyPausedRef = useRef(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const youtubeIframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -104,6 +105,7 @@ export const WeddingAudio: React.FC = () => {
   }, []);
 
   const handlePlay = useCallback(() => {
+    userManuallyPausedRef.current = false;
     setIsPlaying(true);
     setIsAudioPlaying(true);
 
@@ -135,6 +137,7 @@ export const WeddingAudio: React.FC = () => {
   }, [youtubeId, isDirectAudio, startTime, endTime, setIsAudioPlaying, startSynthesizer]);
 
   const handlePause = useCallback(() => {
+    userManuallyPausedRef.current = true;
     setIsPlaying(false);
     setIsAudioPlaying(false);
 
@@ -160,7 +163,49 @@ export const WeddingAudio: React.FC = () => {
     }
   };
 
-  // Sync with global custom events (e.g. from Open Invitation button)
+  // Autoplay immediately on website load, with fallback on very first user gesture if restricted by browser
+  useEffect(() => {
+    let unmounted = false;
+
+    const tryInitialPlay = () => {
+      if (!unmounted && !userManuallyPausedRef.current) {
+        handlePlay();
+      }
+    };
+
+    // Attempt right away
+    const timer = setTimeout(tryInitialPlay, 400);
+
+    // If browser blocks unprompted audio autoplay, start smoothly on first touch/click/scroll
+    const onFirstUserAction = () => {
+      cleanupListeners();
+      if (!userManuallyPausedRef.current) {
+        handlePlay();
+      }
+    };
+
+    const cleanupListeners = () => {
+      window.removeEventListener('pointerdown', onFirstUserAction);
+      window.removeEventListener('touchstart', onFirstUserAction);
+      window.removeEventListener('scroll', onFirstUserAction);
+      window.removeEventListener('keydown', onFirstUserAction);
+      window.removeEventListener('click', onFirstUserAction);
+    };
+
+    window.addEventListener('pointerdown', onFirstUserAction, { passive: true, once: true });
+    window.addEventListener('touchstart', onFirstUserAction, { passive: true, once: true });
+    window.addEventListener('scroll', onFirstUserAction, { passive: true, once: true });
+    window.addEventListener('keydown', onFirstUserAction, { passive: true, once: true });
+    window.addEventListener('click', onFirstUserAction, { passive: true, once: true });
+
+    return () => {
+      unmounted = true;
+      clearTimeout(timer);
+      cleanupListeners();
+    };
+  }, [handlePlay]);
+
+  // Sync with global custom events
   useEffect(() => {
     const onPlayEvent = () => handlePlay();
     const onPauseEvent = () => handlePause();
@@ -221,9 +266,9 @@ export const WeddingAudio: React.FC = () => {
     };
   }, [stopSynthesizer]);
 
-  // Construct YouTube URL with start and end times for trimming
+  // Construct YouTube URL with start and end times for trimming + autoplay
   const ytEmbedSrc = youtubeId
-    ? `https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&origin=${encodeURIComponent(
+    ? `https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&autoplay=1&origin=${encodeURIComponent(
         window.location.origin
       )}&playsinline=1${startTime > 0 ? `&start=${Math.floor(startTime)}` : ''}${
         endTime > startTime ? `&end=${Math.floor(endTime)}` : ''
@@ -232,13 +277,18 @@ export const WeddingAudio: React.FC = () => {
 
   return (
     <div className="relative inline-flex items-center">
-      {/* Hidden YouTube Iframe Audio Player with Cut/Trim support */}
+      {/* Hidden YouTube Iframe Audio Player with Cut/Trim & initial autoplay support */}
       {youtubeId && (
         <iframe
           ref={youtubeIframeRef}
           key={`yt-${youtubeId}-${startTime}-${endTime}`}
           title="Wedding Music Player"
           src={ytEmbedSrc}
+          onLoad={() => {
+            if (!userManuallyPausedRef.current) {
+              handlePlay();
+            }
+          }}
           className="absolute -top-[9999px] -left-[9999px] w-1 h-1 opacity-0 pointer-events-none"
           allow="autoplay"
         />
@@ -248,6 +298,7 @@ export const WeddingAudio: React.FC = () => {
       {isDirectAudio && (
         <audio
           ref={audioRef}
+          autoPlay
           src={musicSettings.audioUrl}
           onPlay={() => {
             setIsPlaying(true);

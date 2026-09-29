@@ -358,7 +358,7 @@ export const WeddingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const [isInvitationOpened, setIsInvitationOpened] = useState(false);
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(true);
 
   const playAudio = useCallback(() => {
     setIsAudioPlaying(true);
@@ -380,8 +380,6 @@ export const WeddingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const openInvitation = useCallback(() => {
     setIsInvitationOpened(true);
-    setIsAudioPlaying(true);
-    window.dispatchEvent(new CustomEvent('wedding_play_music'));
   }, []);
 
   return (
