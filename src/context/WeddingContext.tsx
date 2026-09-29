@@ -2,6 +2,10 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { WeddingData } from '../types/wedding';
 import { defaultWeddingData } from '../data/defaultData';
 import { saveToIndexedDb, loadFromIndexedDb, broadcastDataChange } from '../utils/storageHelper';
+import {
+  saveWeddingDataToCloud,
+  subscribeToWeddingData,
+} from '../lib/firebase';
 
 interface ToastMessage {
   id: string;
@@ -22,6 +26,8 @@ interface WeddingContextType {
   showToast: (message: string, type?: 'success' | 'info' | 'error') => void;
   exportDataJson: () => void;
   importDataJson: (jsonString: string) => boolean;
+  syncToCloudNow: () => Promise<void>;
+  cloudSyncStatus: 'synced' | 'syncing' | 'offline' | 'error';
 }
 
 const STORAGE_KEY = 'nepali_wedding_invitation_data_v1';
@@ -130,6 +136,8 @@ export const WeddingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [data.appearance]);
 
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<'synced' | 'syncing' | 'offline' | 'error'>('synced');
+
   // Cross-tab and window synchronization
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
@@ -158,7 +166,49 @@ export const WeddingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   }, []);
 
-  // Persist data changes to both localStorage and IndexedDB
+  // Real-time synchronization with Cloud Firestore across all devices
+  useEffect(() => {
+    let isInitial = true;
+    const unsubscribe = subscribeToWeddingData(
+      (cloudData) => {
+        if (cloudData) {
+          setData((prev) => {
+            const merged = mergeWeddingData(prev, cloudData);
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+            } catch {
+              // ignore
+            }
+            saveToIndexedDb(merged).catch(() => {});
+            return merged;
+          });
+          setCloudSyncStatus('synced');
+        } else if (isInitial) {
+          // If Firestore active document does not exist yet, auto-migrate this device's local data to Cloud Firestore!
+          const localSaved = localStorage.getItem(STORAGE_KEY);
+          if (localSaved) {
+            try {
+              const parsed = JSON.parse(localSaved);
+              setCloudSyncStatus('syncing');
+              saveWeddingDataToCloud(parsed)
+                .then(() => setCloudSyncStatus('synced'))
+                .catch(() => setCloudSyncStatus('error'));
+            } catch {
+              // ignore
+            }
+          }
+        }
+        isInitial = false;
+      },
+      () => {
+        setCloudSyncStatus('error');
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // Persist data changes to localStorage, IndexedDB, and Cloud Firestore
   const updateData = useCallback((updater: (prev: WeddingData) => WeddingData) => {
     setData((prev) => {
       const next = updater(prev);
@@ -173,12 +223,33 @@ export const WeddingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Always save full data to IndexedDB
       saveToIndexedDb(next).catch((err) => console.error('IndexedDB save failed:', err));
 
+      // Push to Cloud Firestore for cross-device sync
+      setCloudSyncStatus('syncing');
+      saveWeddingDataToCloud(next)
+        .then(() => setCloudSyncStatus('synced'))
+        .catch((err) => {
+          console.error('Cloud Firestore sync error:', err);
+          setCloudSyncStatus('error');
+        });
+
       // Broadcast to other components/tabs
       broadcastDataChange(next);
 
       return next;
     });
   }, []);
+
+  const syncToCloudNow = async () => {
+    setCloudSyncStatus('syncing');
+    try {
+      await saveWeddingDataToCloud(data);
+      setCloudSyncStatus('synced');
+      showToast('Successfully synced wedding data to Cloud!', 'success');
+    } catch (e) {
+      setCloudSyncStatus('error');
+      showToast('Could not sync to cloud. Please check database permissions.', 'error');
+    }
+  };
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     const id = Date.now().toString() + Math.random().toString(36).substring(2, 5);
@@ -196,6 +267,7 @@ export const WeddingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error(e);
     }
     saveToIndexedDb(defaultWeddingData).catch(console.error);
+    saveWeddingDataToCloud(defaultWeddingData).catch(console.error);
     broadcastDataChange(defaultWeddingData);
     showToast('Reset all settings to default Nepali wedding details');
   };
@@ -256,6 +328,8 @@ export const WeddingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         showToast,
         exportDataJson,
         importDataJson,
+        syncToCloudNow,
+        cloudSyncStatus,
       }}
     >
       {children}

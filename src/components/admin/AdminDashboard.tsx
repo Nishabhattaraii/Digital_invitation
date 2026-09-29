@@ -21,6 +21,8 @@ import {
   UploadCloud,
   Lock,
   Music,
+  Cloud,
+  RefreshCw,
 } from 'lucide-react';
 import { compressImage } from '../../utils/imageCompressor';
 
@@ -45,6 +47,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     showToast,
     exportDataJson,
     importDataJson,
+    syncToCloudNow,
+    cloudSyncStatus,
   } = useWedding();
 
   const handleClose = () => {
@@ -2193,6 +2197,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <p className="text-xs text-stone-500">
                     Download your complete customized wedding setup as a JSON file or restore a previous backup.
                   </p>
+                </div>
+
+                {/* Cloud Sync Status & Actions */}
+                <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700">
+                        <Cloud className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-stone-800 flex items-center gap-2">
+                          Cloud Database Sync
+                          {cloudSyncStatus === 'synced' && (
+                            <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                              Live Across All Devices
+                            </span>
+                          )}
+                          {cloudSyncStatus === 'syncing' && (
+                            <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                              Syncing...
+                            </span>
+                          )}
+                          {cloudSyncStatus === 'error' && (
+                            <span className="text-[10px] bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                              Needs Cloud Setup
+                            </span>
+                          )}
+                        </h4>
+                        <p className="text-xs text-stone-500">
+                          Data is automatically saved to Cloud Firestore and synchronized with all guest phones and devices.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={syncToCloudNow}
+                      disabled={cloudSyncStatus === 'syncing'}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold uppercase tracking-wider cursor-pointer transition-colors disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 text-amber-600 ${cloudSyncStatus === 'syncing' ? 'animate-spin' : ''}`} />
+                      <span>Sync to Cloud</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="p-4 rounded-xl border border-stone-200 space-y-4">
