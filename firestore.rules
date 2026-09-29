@@ -2,9 +2,14 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /weddings/{weddingId} {
-      // Allow guests on all devices to read the wedding invitation
-      // Allow admin to update from any device
+    // Allow public read and admin writes to wedding documents and photos
+    match /weddings/{document=**} {
+      allow read, write: if true;
+    }
+    match /wedding_photos/{document=**} {
+      allow read, write: if true;
+    }
+    match /{document=**} {
       allow read, write: if true;
     }
   }

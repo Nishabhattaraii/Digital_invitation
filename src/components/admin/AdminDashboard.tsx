@@ -188,7 +188,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Handle Gallery Photo Upload with Automatic Canvas Compression
   const handlePhotoUpload = async (slotIndex: number, file: File) => {
     try {
-      const compressed = await compressImage(file, 1200, 0.84);
+      const compressed = await compressImage(file, 960, 0.76);
       const updatedGallery = [...formData.gallery];
       if (updatedGallery[slotIndex]) {
         updatedGallery[slotIndex] = {
@@ -211,7 +211,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Handle Hero Couple Portrait Upload with Canvas Compression
   const handleHeroUpload = async (file: File) => {
     try {
-      const compressed = await compressImage(file, 1200, 0.85);
+      const compressed = await compressImage(file, 960, 0.76);
       setFormData((prev) => ({
         ...prev,
         appearance: { ...prev.appearance, heroIllustrationUrl: compressed },
@@ -230,7 +230,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Handle Groom Photo Upload with Canvas Compression
   const handleGroomPhotoUpload = async (file: File) => {
     try {
-      const compressed = await compressImage(file, 900, 0.84);
+      const compressed = await compressImage(file, 800, 0.76);
       setFormData((prev) => ({
         ...prev,
         couple: {
@@ -255,7 +255,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Handle Bride Photo Upload with Canvas Compression
   const handleBridePhotoUpload = async (file: File) => {
     try {
-      const compressed = await compressImage(file, 900, 0.84);
+      const compressed = await compressImage(file, 800, 0.76);
       setFormData((prev) => ({
         ...prev,
         couple: {

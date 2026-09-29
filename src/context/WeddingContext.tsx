@@ -35,6 +35,15 @@ const AUTH_KEY = 'nepali_wedding_admin_authenticated';
 const ADMIN_PASSCODE = import.meta.env.VITE_ADMIN_PASSCODE || '1010';
 
 function mergeWeddingData(base: WeddingData, incoming: Partial<WeddingData>): WeddingData {
+  const isBaseGroomCustom = base.couple?.groom?.image?.startsWith('data:image/');
+  const isIncGroomDefault = incoming.couple?.groom?.image?.startsWith('/images/');
+
+  const isBaseBrideCustom = base.couple?.bride?.image?.startsWith('data:image/');
+  const isIncBrideDefault = incoming.couple?.bride?.image?.startsWith('/images/');
+
+  const isBaseHeroCustom = base.appearance?.heroIllustrationUrl?.startsWith('data:image/');
+  const isIncHeroDefault = incoming.appearance?.heroIllustrationUrl?.startsWith('/images/');
+
   return {
     ...base,
     ...incoming,
@@ -46,17 +55,26 @@ function mergeWeddingData(base: WeddingData, incoming: Partial<WeddingData>): We
       ...base.couple,
       ...(incoming.couple || {}),
       groom: {
-        ...base.couple.groom,
+        ...base.couple?.groom,
         ...(incoming.couple?.groom || {}),
+        image: (isBaseGroomCustom && isIncGroomDefault)
+          ? base.couple.groom.image
+          : (incoming.couple?.groom?.image || base.couple?.groom?.image),
       },
       bride: {
-        ...base.couple.bride,
+        ...base.couple?.bride,
         ...(incoming.couple?.bride || {}),
+        image: (isBaseBrideCustom && isIncBrideDefault)
+          ? base.couple.bride.image
+          : (incoming.couple?.bride?.image || base.couple?.bride?.image),
       },
     },
     appearance: {
       ...base.appearance,
       ...(incoming.appearance || {}),
+      heroIllustrationUrl: (isBaseHeroCustom && isIncHeroDefault)
+        ? base.appearance.heroIllustrationUrl
+        : (incoming.appearance?.heroIllustrationUrl || base.appearance?.heroIllustrationUrl),
     },
     events: {
       ...base.events,
@@ -86,7 +104,18 @@ function mergeWeddingData(base: WeddingData, incoming: Partial<WeddingData>): We
       ...base.invitation,
       ...(incoming.invitation || {}),
     },
-    gallery: incoming.gallery && incoming.gallery.length > 0 ? incoming.gallery : base.gallery,
+    gallery: incoming.gallery && incoming.gallery.length > 0
+      ? incoming.gallery.map((incItem, i) => {
+          const baseItem = base.gallery?.[i];
+          if (!baseItem) return incItem;
+          const isBaseCustom = baseItem.url?.startsWith('data:image/');
+          const isIncDefault = incItem.url?.startsWith('/images/');
+          if (isBaseCustom && isIncDefault) {
+            return { ...incItem, url: baseItem.url };
+          }
+          return incItem;
+        })
+      : base.gallery,
   };
 }
 
