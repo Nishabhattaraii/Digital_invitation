@@ -15,7 +15,6 @@ import {
   Save,
   RotateCcw,
   Upload,
-  Trash2,
   X,
   Download,
   UploadCloud,
@@ -23,6 +22,11 @@ import {
   Music,
   Cloud,
   RefreshCw,
+  Scissors,
+  Play,
+  Pause,
+  Plus,
+  Volume2,
 } from 'lucide-react';
 import { compressImage } from '../../utils/imageCompressor';
 
@@ -82,6 +86,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [loginError, setLoginError] = useState('');
   const [passcodeInput, setPasscodeInput] = useState('');
   const [formData, setFormData] = useState(data);
+  const [isAdminAudioPreviewing, setIsAdminAudioPreviewing] = useState(false);
+  const adminAudioRef = React.useRef<HTMLAudioElement | null>(null);
 
   // Sync formData with context when data changes
   React.useEffect(() => {
@@ -295,6 +301,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     reader.readAsDataURL(file);
   };
 
+  const formatTimeMmSs = (totalSec: number = 0): string => {
+    const clean = Math.max(0, Math.floor(totalSec || 0));
+    const mins = Math.floor(clean / 60);
+    const secs = Math.floor(clean % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const togglePhotoVisibility = (index: number) => {
+    const updatedGallery = [...formData.gallery];
+    if (updatedGallery[index]) {
+      const isNowHidden = !updatedGallery[index].hidden;
+      updatedGallery[index] = {
+        ...updatedGallery[index],
+        hidden: isNowHidden,
+      };
+      setFormData((prev) => ({ ...prev, gallery: updatedGallery }));
+      updateData((prev) => ({ ...prev, gallery: updatedGallery }));
+      showToast(
+        isNowHidden
+          ? `Photo slot #${index + 1} will be hidden on public site`
+          : `Photo slot #${index + 1} is now visible on public site`,
+        'info'
+      );
+    }
+  };
+
+  const setGalleryDisplayLimit = (limit: number) => {
+    const cleanLimit = Math.max(0, limit);
+    setFormData((prev) => ({ ...prev, galleryDisplayLimit: cleanLimit }));
+    updateData((prev) => ({ ...prev, galleryDisplayLimit: cleanLimit }));
+    showToast(
+      cleanLimit === 0
+        ? 'Gallery section is now completely hidden from guests (0 photos)'
+        : `Displaying up to ${cleanLimit} photos in gallery`,
+      'success'
+    );
+  };
+
   const handleSaveAll = () => {
     updateData(() => formData);
     showToast('All wedding details saved successfully!');
@@ -305,7 +349,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     { id: 'family', label: 'Family Blessings', icon: HeartHandshake },
     { id: 'wedding', label: 'Wedding Ceremony', icon: Flame },
     { id: 'reception', label: 'Reception Party', icon: PartyPopper },
-    { id: 'photos', label: '4 Photos Gallery', icon: Image },
+    { id: 'photos', label: 'Photo Gallery', icon: Image },
     { id: 'music', label: 'Wedding Song', icon: Music },
     { id: 'invitation', label: 'Invitation Text', icon: ScrollText },
     { id: 'calendar', label: 'Calendar & Countdown', icon: Calendar },
@@ -1454,41 +1498,152 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             )}
 
-            {/* TAB 5: 4-PHOTO GALLERY */}
+            {/* TAB 5: PHOTO GALLERY */}
             {activeTab === 'photos' && (
               <div className="space-y-6 max-w-3xl">
                 <div>
                   <h3 className="font-serif-cormorant font-bold text-2xl text-stone-800">
-                    4-Photo Gallery Manager
+                    Wedding Photo Gallery Manager
                   </h3>
                   <p className="text-xs text-stone-500">
-                    Upload, replace, and edit titles/captions for exactly four photo slots (Groom, Bride, Couple, Wedding).
+                    Manage which photos to display on your wedding invitation website, or keep 0 photos to completely hide the gallery section.
                   </p>
                 </div>
 
+                {/* Display Limit & Visibility Settings Card */}
+                <div className="p-4 sm:p-5 rounded-xl border border-[var(--primary-gold)]/40 bg-gradient-to-r from-amber-50/60 to-rose-50/40 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--primary-red)]">
+                        Photos to Display on Website
+                      </h4>
+                      <p className="text-[11px] text-stone-600">
+                        Choose how many visible photos to show to guests. You can choose <strong>0 photos</strong> to hide the entire gallery.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-stone-600">Display Limit:</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max={formData.gallery?.length || 10}
+                        value={
+                          typeof formData.galleryDisplayLimit === 'number'
+                            ? formData.galleryDisplayLimit
+                            : formData.gallery?.length || 4
+                        }
+                        onChange={(e) => {
+                          const val = Math.max(0, parseInt(e.target.value) || 0);
+                          setGalleryDisplayLimit(val);
+                        }}
+                        className="w-16 px-2.5 py-1 text-center font-bold text-sm bg-white border border-stone-300 rounded-lg shadow-2xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quick Preset Buttons for Photo Count */}
+                  <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-stone-200/70">
+                    <span className="text-[11px] font-semibold text-stone-500 mr-1">Quick Select:</span>
+                    <button
+                      type="button"
+                      onClick={() => setGalleryDisplayLimit(0)}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                        (formData.galleryDisplayLimit ?? 4) === 0
+                          ? 'bg-rose-600 text-white border-rose-700 shadow-xs'
+                          : 'bg-white text-rose-700 border-rose-300 hover:bg-rose-50'
+                      }`}
+                    >
+                      0 Photos (Hide Gallery Section)
+                    </button>
+                    {[1, 2, 3, 4].map((count) => (
+                      <button
+                        key={count}
+                        type="button"
+                        onClick={() => setGalleryDisplayLimit(count)}
+                        className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                          formData.galleryDisplayLimit === count
+                            ? 'bg-[var(--primary-red)] text-white border-[var(--primary-red)] shadow-xs'
+                            : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-50'
+                        }`}
+                      >
+                        {count} {count === 1 ? 'Photo' : 'Photos'}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setGalleryDisplayLimit(formData.gallery?.length || 4)}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                        formData.galleryDisplayLimit === (formData.gallery?.length || 4)
+                          ? 'bg-[var(--primary-red)] text-white border-[var(--primary-red)] shadow-xs'
+                          : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-50'
+                      }`}
+                    >
+                      Show All Visible ({formData.gallery?.length || 4})
+                    </button>
+                  </div>
+
+                  {/* Current Status Banner */}
+                  <div className="flex items-center justify-between text-xs pt-1">
+                    <span className="text-stone-600">
+                      Total Photos: <strong>{formData.gallery?.length || 0}</strong> • Visible Photos:{' '}
+                      <strong>{formData.gallery?.filter((p) => !p.hidden).length || 0}</strong> • Hidden:{' '}
+                      <strong>{formData.gallery?.filter((p) => p.hidden).length || 0}</strong>
+                    </span>
+                    {(formData.galleryDisplayLimit ?? 4) === 0 ? (
+                      <span className="font-bold text-rose-700 bg-rose-100 px-2.5 py-0.5 rounded-full border border-rose-200">
+                        Gallery is completely hidden on website
+                      </span>
+                    ) : (
+                      <span className="font-semibold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                        Showing up to {formData.galleryDisplayLimit ?? 4} photo(s)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Individual Photo Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {formData.gallery.map((photo, index) => (
                     <div
                       key={photo.id || index}
-                      className="p-4 rounded-xl border border-stone-200 bg-stone-50/40 space-y-3 relative group"
+                      className={`p-4 rounded-xl border transition-all space-y-3 relative group ${
+                        photo.hidden
+                          ? 'border-rose-300 bg-rose-50/30'
+                          : 'border-stone-200 bg-stone-50/40'
+                      }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-[var(--primary-red)] uppercase tracking-wider">
+                      {/* Slot Header with Dedicated Hide Button replacing delete button */}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-[var(--primary-red)] uppercase tracking-wider truncate">
                           Slot #{index + 1}: {photo.title}
                         </span>
-                        <button
-                          onClick={() => {
-                            const updated = [...formData.gallery];
-                            updated[index].url = '/images/hero-couple.jpg';
-                            setFormData({ ...formData, gallery: updated });
-                            updateData((prev) => ({ ...prev, gallery: updated }));
-                            showToast(`Reset photo slot #${index + 1}`);
-                          }}
-                          title="Reset to default image"
-                          className="text-stone-400 hover:text-red-500 p-1 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Dedicated Hide / Show Button replacing delete button */}
+                          <button
+                            type="button"
+                            onClick={() => togglePhotoVisibility(index)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-2xs transition-all cursor-pointer border ${
+                              photo.hidden
+                                ? 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 hover:border-rose-400'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 hover:border-emerald-400'
+                            }`}
+                            title={photo.hidden ? 'Click to show this photo on the homepage' : 'Click to hide this photo and completely remove its space from homepage'}
+                          >
+                            {photo.hidden ? (
+                              <>
+                                <EyeOff className="w-3.5 h-3.5 text-rose-600" />
+                                <span>Hidden (Click to Show)</span>
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Hide Photo</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
 
                       {/* Photo Thumbnail */}
@@ -1498,6 +1653,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           alt={photo.title}
                           className="w-full h-full object-cover"
                         />
+
+                        {/* Distinct Overlay if Photo is Hidden */}
+                        {photo.hidden && (
+                          <div className="absolute inset-0 bg-stone-900/75 backdrop-blur-2xs flex flex-col items-center justify-center text-center p-3 z-10 text-white">
+                            <EyeOff className="w-7 h-7 text-rose-300 mb-1" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-rose-200">
+                              Hidden from Homepage
+                            </span>
+                            <span className="text-[10px] text-stone-200 mt-0.5">
+                              Space completely removed from homepage
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => togglePhotoVisibility(index)}
+                              className="mt-2 text-[11px] font-semibold px-3 py-1 bg-white text-stone-900 rounded-md hover:bg-stone-100 shadow-xs cursor-pointer"
+                            >
+                              Show Photo
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {/* Upload / Replace Controls */}
@@ -1566,6 +1741,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                   ))}
                 </div>
+
+                {/* Add Photo Slot Button */}
+                <div className="pt-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newPhoto = {
+                        id: `photo-${Date.now()}`,
+                        title: `Moments #${formData.gallery.length + 1}`,
+                        caption: 'Cherished pre-wedding ceremony memories',
+                        url: '/images/hero-couple.jpg',
+                        hidden: false,
+                      };
+                      const updated = [...formData.gallery, newPhoto];
+                      setFormData({ ...formData, gallery: updated });
+                      updateData((prev) => ({ ...prev, gallery: updated }));
+                      showToast('Added new photo slot to gallery', 'success');
+                    }}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--primary-red)] text-white hover:bg-[#6A1420] text-xs font-semibold shadow-xs cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Another Photo Slot</span>
+                  </button>
+
+                  <span className="text-xs text-stone-500 italic">
+                    All photo changes are instantly saved
+                  </span>
+                </div>
               </div>
             )}
 
@@ -1577,7 +1780,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     Wedding Music &amp; Song Manager
                   </h3>
                   <p className="text-xs text-stone-500">
-                    Customize the background wedding song played to guests on the website. Currently set to the auspicious wedding song <strong>“Ullam Paadum”</strong> from the movie <em>2 States</em>.
+                    Customize the background wedding song played to guests on the website and select the exact portion of the song to keep.
                   </p>
                 </div>
 
@@ -1690,6 +1893,278 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         Uploads directly from your device (saved locally)
                       </span>
                     </div>
+                  </div>
+                </div>
+
+                {/* Audio Trimmer / Portion Selector Card */}
+                <div className="p-4 sm:p-5 rounded-xl border border-stone-200 bg-white space-y-4 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-[var(--primary-red)]/10 text-[var(--primary-red)] flex items-center justify-center">
+                        <Scissors className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--primary-red)]">
+                          Select Audio Portion (Song Cutter)
+                        </h4>
+                        <p className="text-[11px] text-stone-500">
+                          Trim and select the exact part of the song you want to play for your guests.
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
+                      {(formData.music?.startTime || 0) > 0 || (formData.music?.endTime || 0) > 0
+                        ? 'Trimmed'
+                        : 'Full Song'}
+                    </span>
+                  </div>
+
+                  {/* Start & End Inputs Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    {/* START TIME */}
+                    <div className="p-3 rounded-lg border border-stone-200 bg-stone-50/70 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-stone-700">
+                          Start Time
+                        </label>
+                        <span className="text-xs font-mono font-bold text-[var(--primary-red)] bg-white px-2 py-0.5 rounded border border-stone-200">
+                          {formatTimeMmSs(formData.music?.startTime || 0)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="block text-[10px] text-stone-500 mb-0.5">Minutes</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="59"
+                            value={Math.floor((formData.music?.startTime || 0) / 60)}
+                            onChange={(e) => {
+                              const mins = Math.max(0, parseInt(e.target.value) || 0);
+                              const secs = (formData.music?.startTime || 0) % 60;
+                              const newStart = mins * 60 + secs;
+                              const newMusic = { ...formData.music, startTime: newStart };
+                              setFormData({ ...formData, music: newMusic });
+                              updateData((prev) => ({ ...prev, music: newMusic }));
+                            }}
+                            className="w-full px-2.5 py-1.5 border rounded text-xs bg-white"
+                          />
+                        </div>
+                        <div>
+                          <span className="block text-[10px] text-stone-500 mb-0.5">Seconds</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="59"
+                            value={(formData.music?.startTime || 0) % 60}
+                            onChange={(e) => {
+                              const mins = Math.floor((formData.music?.startTime || 0) / 60);
+                              const secs = Math.min(59, Math.max(0, parseInt(e.target.value) || 0));
+                              const newStart = mins * 60 + secs;
+                              const newMusic = { ...formData.music, startTime: newStart };
+                              setFormData({ ...formData, music: newMusic });
+                              updateData((prev) => ({ ...prev, music: newMusic }));
+                            }}
+                            className="w-full px-2.5 py-1.5 border rounded text-xs bg-white"
+                          />
+                        </div>
+                      </div>
+                      {/* Quick Start Buttons */}
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {[0, 15, 30, 45, 60].map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => {
+                              const newMusic = { ...formData.music, startTime: s };
+                              setFormData({ ...formData, music: newMusic });
+                              updateData((prev) => ({ ...prev, music: newMusic }));
+                            }}
+                            className={`px-2 py-0.5 rounded text-[10px] font-medium border cursor-pointer ${
+                              (formData.music?.startTime || 0) === s
+                                ? 'bg-[var(--primary-red)] text-white border-[var(--primary-red)]'
+                                : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-100'
+                            }`}
+                          >
+                            {formatTimeMmSs(s)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* END TIME */}
+                    <div className="p-3 rounded-lg border border-stone-200 bg-stone-50/70 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-stone-700">
+                          End Time
+                        </label>
+                        <span className="text-xs font-mono font-bold text-[var(--primary-red)] bg-white px-2 py-0.5 rounded border border-stone-200">
+                          {(formData.music?.endTime || 0) > 0
+                            ? formatTimeMmSs(formData.music?.endTime)
+                            : 'End of Song'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="block text-[10px] text-stone-500 mb-0.5">Minutes</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="59"
+                            value={Math.floor((formData.music?.endTime || 0) / 60)}
+                            onChange={(e) => {
+                              const mins = Math.max(0, parseInt(e.target.value) || 0);
+                              const secs = (formData.music?.endTime || 0) % 60;
+                              const newEnd = mins * 60 + secs;
+                              const newMusic = { ...formData.music, endTime: newEnd };
+                              setFormData({ ...formData, music: newMusic });
+                              updateData((prev) => ({ ...prev, music: newMusic }));
+                            }}
+                            className="w-full px-2.5 py-1.5 border rounded text-xs bg-white"
+                          />
+                        </div>
+                        <div>
+                          <span className="block text-[10px] text-stone-500 mb-0.5">Seconds</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="59"
+                            value={(formData.music?.endTime || 0) % 60}
+                            onChange={(e) => {
+                              const mins = Math.floor((formData.music?.endTime || 0) / 60);
+                              const secs = Math.min(59, Math.max(0, parseInt(e.target.value) || 0));
+                              const newEnd = mins * 60 + secs;
+                              const newMusic = { ...formData.music, endTime: newEnd };
+                              setFormData({ ...formData, music: newMusic });
+                              updateData((prev) => ({ ...prev, music: newMusic }));
+                            }}
+                            className="w-full px-2.5 py-1.5 border rounded text-xs bg-white"
+                          />
+                        </div>
+                      </div>
+                      {/* Quick End Buttons */}
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newMusic = { ...formData.music, endTime: 0 };
+                            setFormData({ ...formData, music: newMusic });
+                            updateData((prev) => ({ ...prev, music: newMusic }));
+                          }}
+                          className={`px-2 py-0.5 rounded text-[10px] font-medium border cursor-pointer ${
+                            (formData.music?.endTime || 0) === 0
+                              ? 'bg-[var(--primary-red)] text-white border-[var(--primary-red)]'
+                              : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-100'
+                          }`}
+                        >
+                          Full End
+                        </button>
+                        {[30, 45, 60, 90, 120].map((dur) => {
+                          const targetEnd = (formData.music?.startTime || 0) + dur;
+                          return (
+                            <button
+                              key={dur}
+                              type="button"
+                              onClick={() => {
+                                const newMusic = { ...formData.music, endTime: targetEnd };
+                                setFormData({ ...formData, music: newMusic });
+                                updateData((prev) => ({ ...prev, music: newMusic }));
+                              }}
+                              className={`px-2 py-0.5 rounded text-[10px] font-medium border cursor-pointer ${
+                                (formData.music?.endTime || 0) === targetEnd
+                                  ? 'bg-[var(--primary-red)] text-white border-[var(--primary-red)]'
+                                  : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-100'
+                              }`}
+                            >
+                              +{dur}s
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary / Clip duration bar */}
+                  <div className="p-3 rounded-lg bg-amber-50/80 border border-amber-200 text-xs text-amber-900 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Volume2 className="w-4 h-4 text-amber-700" />
+                      <span>
+                        Active Clip: <strong>{formatTimeMmSs(formData.music?.startTime || 0)}</strong> to{' '}
+                        <strong>
+                          {(formData.music?.endTime || 0) > 0
+                            ? formatTimeMmSs(formData.music?.endTime)
+                            : 'End of Song'}
+                        </strong>
+                        {(formData.music?.endTime || 0) > (formData.music?.startTime || 0) && (
+                          <span className="ml-1.5 text-stone-600 font-medium">
+                            (Duration: {(formData.music?.endTime || 0) - (formData.music?.startTime || 0)} seconds)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isAdminAudioPreviewing) {
+                            if (adminAudioRef.current) adminAudioRef.current.pause();
+                            setIsAdminAudioPreviewing(false);
+                          } else {
+                            if (adminAudioRef.current) {
+                              const start = formData.music?.startTime || 0;
+                              adminAudioRef.current.currentTime = start;
+                              adminAudioRef.current.play().catch(() => {});
+                            }
+                            setIsAdminAudioPreviewing(true);
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[var(--primary-red)] text-white text-[11px] font-semibold hover:bg-[#6A1420] transition-colors cursor-pointer shadow-2xs"
+                      >
+                        {isAdminAudioPreviewing ? (
+                          <>
+                            <Pause className="w-3 h-3" />
+                            <span>Stop</span>
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-3 h-3 fill-white" />
+                            <span>Preview</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newMusic = { ...formData.music, startTime: 0, endTime: 0 };
+                          setFormData({ ...formData, music: newMusic });
+                          updateData((prev) => ({ ...prev, music: newMusic }));
+                          showToast('Reset audio portion to play entire song');
+                        }}
+                        className="text-[11px] text-amber-800 underline hover:text-amber-950 cursor-pointer font-medium"
+                      >
+                        Reset to Full Song
+                      </button>
+                    </div>
+
+                    {/* Hidden audio element for admin preview */}
+                    <audio
+                      ref={adminAudioRef}
+                      src={formData.music?.audioUrl}
+                      onTimeUpdate={(e) => {
+                        const audio = e.currentTarget;
+                        const start = formData.music?.startTime || 0;
+                        const end = formData.music?.endTime || 0;
+                        if (end > start && audio.currentTime >= end) {
+                          audio.currentTime = start;
+                          audio.pause();
+                          setIsAdminAudioPreviewing(false);
+                        }
+                      }}
+                      onEnded={() => setIsAdminAudioPreviewing(false)}
+                      className="hidden"
+                    />
                   </div>
                 </div>
 

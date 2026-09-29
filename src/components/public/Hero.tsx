@@ -8,13 +8,16 @@ import {
 import { ChevronDown, Calendar, Clock, MapPin } from 'lucide-react';
 
 export const Hero: React.FC = () => {
-  const { data } = useWedding();
+  const { data, openInvitation } = useWedding();
 
   const handleOpenInvitation = () => {
-    const target = document.querySelector('#couple');
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth' });
-    }
+    openInvitation();
+    setTimeout(() => {
+      const target = document.querySelector('#couple');
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 50);
   };
 
   return (

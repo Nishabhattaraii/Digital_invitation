@@ -35,6 +35,7 @@ export interface GalleryPhoto {
   title: string;
   caption: string;
   url: string;
+  hidden?: boolean;
 }
 
 export interface MusicSettings {
@@ -42,6 +43,8 @@ export interface MusicSettings {
   subtitle: string;
   audioUrl: string;
   autoplay?: boolean;
+  startTime?: number; // start time in seconds
+  endTime?: number; // end time in seconds (0 means play to end)
 }
 
 export interface AppearanceSettings {
@@ -79,6 +82,7 @@ export interface WeddingData {
   };
   music: MusicSettings;
   gallery: GalleryPhoto[];
+  galleryDisplayLimit?: number; // admin can decide how many photos to display, can be 0
   countdown: {
     targetDate: string; // ISO string e.g. "2026-12-05T09:00:00"
     title: string;

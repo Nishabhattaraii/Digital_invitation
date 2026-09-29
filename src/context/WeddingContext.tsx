@@ -28,6 +28,13 @@ interface WeddingContextType {
   importDataJson: (jsonString: string) => boolean;
   syncToCloudNow: () => Promise<void>;
   cloudSyncStatus: 'synced' | 'syncing' | 'offline' | 'error';
+  isInvitationOpened: boolean;
+  openInvitation: () => void;
+  isAudioPlaying: boolean;
+  setIsAudioPlaying: (playing: boolean) => void;
+  playAudio: () => void;
+  pauseAudio: () => void;
+  toggleAudio: () => void;
 }
 
 const STORAGE_KEY = 'nepali_wedding_invitation_data_v1';
@@ -104,17 +111,25 @@ function mergeWeddingData(base: WeddingData, incoming: Partial<WeddingData>): We
       ...base.invitation,
       ...(incoming.invitation || {}),
     },
+    galleryDisplayLimit: incoming.galleryDisplayLimit !== undefined
+      ? incoming.galleryDisplayLimit
+      : (base.galleryDisplayLimit !== undefined ? base.galleryDisplayLimit : 4),
     gallery: incoming.gallery && incoming.gallery.length > 0
-      ? incoming.gallery.map((incItem, i) => {
-          const baseItem = base.gallery?.[i];
-          if (!baseItem) return incItem;
-          const isBaseCustom = baseItem.url?.startsWith('data:image/');
-          const isIncDefault = incItem.url?.startsWith('/images/');
-          if (isBaseCustom && isIncDefault) {
-            return { ...incItem, url: baseItem.url };
-          }
-          return incItem;
-        })
+      ? [
+          ...incoming.gallery.map((incItem, i) => {
+            const baseItem = base.gallery?.[i];
+            if (!baseItem) return incItem;
+            const isBaseCustom = baseItem.url?.startsWith('data:image/');
+            const isIncDefault = incItem.url?.startsWith('/images/');
+            if (isBaseCustom && isIncDefault) {
+              return { ...incItem, url: baseItem.url };
+            }
+            return incItem;
+          }),
+          ...(base.gallery && base.gallery.length > incoming.gallery.length
+            ? base.gallery.slice(incoming.gallery.length)
+            : []),
+        ]
       : base.gallery,
   };
 }
@@ -342,6 +357,33 @@ export const WeddingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const [isInvitationOpened, setIsInvitationOpened] = useState(false);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+
+  const playAudio = useCallback(() => {
+    setIsAudioPlaying(true);
+    window.dispatchEvent(new CustomEvent('wedding_play_music'));
+  }, []);
+
+  const pauseAudio = useCallback(() => {
+    setIsAudioPlaying(false);
+    window.dispatchEvent(new CustomEvent('wedding_pause_music'));
+  }, []);
+
+  const toggleAudio = useCallback(() => {
+    setIsAudioPlaying((prev) => {
+      const next = !prev;
+      window.dispatchEvent(new CustomEvent(next ? 'wedding_play_music' : 'wedding_pause_music'));
+      return next;
+    });
+  }, []);
+
+  const openInvitation = useCallback(() => {
+    setIsInvitationOpened(true);
+    setIsAudioPlaying(true);
+    window.dispatchEvent(new CustomEvent('wedding_play_music'));
+  }, []);
+
   return (
     <WeddingContext.Provider
       value={{
@@ -359,6 +401,13 @@ export const WeddingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         importDataJson,
         syncToCloudNow,
         cloudSyncStatus,
+        isInvitationOpened,
+        openInvitation,
+        isAudioPlaying,
+        setIsAudioPlaying,
+        playAudio,
+        pauseAudio,
+        toggleAudio,
       }}
     >
       {children}

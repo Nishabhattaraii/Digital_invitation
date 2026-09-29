@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useWedding } from '../../context/WeddingContext';
 import { Play, Pause } from 'lucide-react';
 
 export const WeddingAudio: React.FC = () => {
-  const { data } = useWedding();
+  const { data, setIsAudioPlaying } = useWedding();
   const [isPlaying, setIsPlaying] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -17,7 +17,12 @@ export const WeddingAudio: React.FC = () => {
     title: 'Ullam Paadum',
     subtitle: '2 States',
     audioUrl: 'https://www.youtube.com/watch?v=MbLpZXIZZOg',
+    startTime: 0,
+    endTime: 0,
   };
+
+  const startTime = Math.max(0, musicSettings.startTime || 0);
+  const endTime = musicSettings.endTime && musicSettings.endTime > startTime ? musicSettings.endTime : 0;
 
   // Helper to extract YouTube ID
   const getYouTubeId = (url?: string): string | null => {
@@ -36,15 +41,15 @@ export const WeddingAudio: React.FC = () => {
     musicSettings.audioUrl?.endsWith('.ogg');
 
   // Stop synthetic audio if running
-  const stopSynthesizer = () => {
+  const stopSynthesizer = useCallback(() => {
     if (synthTimerRef.current) {
       clearTimeout(synthTimerRef.current);
       synthTimerRef.current = null;
     }
-  };
+  }, []);
 
   // Graceful Shehnai synthesized melody sequence
-  const startSynthesizer = () => {
+  const startSynthesizer = useCallback(() => {
     if (!audioCtxRef.current) {
       const AudioCtx =
         window.AudioContext ||
@@ -96,17 +101,30 @@ export const WeddingAudio: React.FC = () => {
     };
 
     playNext();
-  };
+  }, []);
 
-  const handlePlay = () => {
+  const handlePlay = useCallback(() => {
     setIsPlaying(true);
+    setIsAudioPlaying(true);
 
     if (youtubeId && youtubeIframeRef.current?.contentWindow) {
+      if (startTime > 0) {
+        youtubeIframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func: 'seekTo', args: [startTime, true] }),
+          '*'
+        );
+      }
       youtubeIframeRef.current.contentWindow.postMessage(
         JSON.stringify({ event: 'command', func: 'playVideo', args: [] }),
         '*'
       );
     } else if (isDirectAudio && audioRef.current) {
+      if (
+        audioRef.current.currentTime < startTime ||
+        (endTime > startTime && audioRef.current.currentTime >= endTime)
+      ) {
+        audioRef.current.currentTime = startTime;
+      }
       audioRef.current.play().catch(() => {
         // Fallback to synthesizer if direct audio load blocked
         startSynthesizer();
@@ -114,10 +132,11 @@ export const WeddingAudio: React.FC = () => {
     } else {
       startSynthesizer();
     }
-  };
+  }, [youtubeId, isDirectAudio, startTime, endTime, setIsAudioPlaying, startSynthesizer]);
 
-  const handlePause = () => {
+  const handlePause = useCallback(() => {
     setIsPlaying(false);
+    setIsAudioPlaying(false);
 
     if (youtubeId && youtubeIframeRef.current?.contentWindow) {
       youtubeIframeRef.current.contentWindow.postMessage(
@@ -131,7 +150,7 @@ export const WeddingAudio: React.FC = () => {
     }
 
     stopSynthesizer();
-  };
+  }, [youtubeId, setIsAudioPlaying, stopSynthesizer]);
 
   const toggleMusic = () => {
     if (isPlaying) {
@@ -140,6 +159,20 @@ export const WeddingAudio: React.FC = () => {
       handlePlay();
     }
   };
+
+  // Sync with global custom events (e.g. from Open Invitation button)
+  useEffect(() => {
+    const onPlayEvent = () => handlePlay();
+    const onPauseEvent = () => handlePause();
+
+    window.addEventListener('wedding_play_music', onPlayEvent);
+    window.addEventListener('wedding_pause_music', onPauseEvent);
+
+    return () => {
+      window.removeEventListener('wedding_play_music', onPlayEvent);
+      window.removeEventListener('wedding_pause_music', onPauseEvent);
+    };
+  }, [handlePlay, handlePause]);
 
   // Listen to messages from YouTube iframe to stay in sync with player state
   useEffect(() => {
@@ -150,8 +183,22 @@ export const WeddingAudio: React.FC = () => {
           if (parsed.event === 'infoDelivery' && parsed.info) {
             if (parsed.info.playerState === 1) {
               setIsPlaying(true);
-            } else if (parsed.info.playerState === 2 || parsed.info.playerState === 0) {
+              setIsAudioPlaying(true);
+            } else if (parsed.info.playerState === 2) {
               setIsPlaying(false);
+              setIsAudioPlaying(false);
+            } else if (parsed.info.playerState === 0) {
+              // Video ended or reached 'end' parameter -> loop back to startTime!
+              if (youtubeIframeRef.current?.contentWindow) {
+                youtubeIframeRef.current.contentWindow.postMessage(
+                  JSON.stringify({ event: 'command', func: 'seekTo', args: [startTime, true] }),
+                  '*'
+                );
+                youtubeIframeRef.current.contentWindow.postMessage(
+                  JSON.stringify({ event: 'command', func: 'playVideo', args: [] }),
+                  '*'
+                );
+              }
             }
           }
         } catch {
@@ -162,7 +209,7 @@ export const WeddingAudio: React.FC = () => {
 
     window.addEventListener('message', handleWindowMessage);
     return () => window.removeEventListener('message', handleWindowMessage);
-  }, []);
+  }, [startTime, setIsAudioPlaying]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -172,35 +219,64 @@ export const WeddingAudio: React.FC = () => {
         audioCtxRef.current.close().catch(() => {});
       }
     };
-  }, []);
+  }, [stopSynthesizer]);
+
+  // Construct YouTube URL with start and end times for trimming
+  const ytEmbedSrc = youtubeId
+    ? `https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&origin=${encodeURIComponent(
+        window.location.origin
+      )}&playsinline=1${startTime > 0 ? `&start=${Math.floor(startTime)}` : ''}${
+        endTime > startTime ? `&end=${Math.floor(endTime)}` : ''
+      }`
+    : '';
 
   return (
     <div className="relative inline-flex items-center">
-      {/* Hidden YouTube Iframe Audio Player */}
+      {/* Hidden YouTube Iframe Audio Player with Cut/Trim support */}
       {youtubeId && (
         <iframe
           ref={youtubeIframeRef}
+          key={`yt-${youtubeId}-${startTime}-${endTime}`}
           title="Wedding Music Player"
-          src={`https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&origin=${encodeURIComponent(
-            window.location.origin
-          )}&playsinline=1&loop=1`}
+          src={ytEmbedSrc}
           className="absolute -top-[9999px] -left-[9999px] w-1 h-1 opacity-0 pointer-events-none"
           allow="autoplay"
         />
       )}
 
-      {/* Hidden HTML5 Audio Element for Direct URLs */}
+      {/* Hidden HTML5 Audio Element for Direct URLs with Cut/Trim loop support */}
       {isDirectAudio && (
         <audio
           ref={audioRef}
           src={musicSettings.audioUrl}
-          loop
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
+          onPlay={() => {
+            setIsPlaying(true);
+            setIsAudioPlaying(true);
+          }}
+          onPause={() => {
+            setIsPlaying(false);
+            setIsAudioPlaying(false);
+          }}
+          onLoadedMetadata={(e) => {
+            if (startTime > 0) {
+              e.currentTarget.currentTime = startTime;
+            }
+          }}
+          onTimeUpdate={(e) => {
+            const audio = e.currentTarget;
+            if (endTime > startTime && audio.currentTime >= endTime) {
+              audio.currentTime = startTime;
+              audio.play().catch(() => {});
+            }
+          }}
+          onEnded={(e) => {
+            e.currentTarget.currentTime = startTime;
+            e.currentTarget.play().catch(() => {});
+          }}
         />
       )}
 
-      {/* Minimalist Aesthetic Play/Pause Button in Header (No song name) */}
+      {/* Minimalist Aesthetic Play/Pause Button in Header */}
       <button
         onClick={toggleMusic}
         aria-label={isPlaying ? 'Pause music' : 'Play wedding song'}

@@ -4,7 +4,7 @@ import { WeddingAudio } from '../decorative/WeddingAudio';
 import { Menu, X } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
-  const { data } = useWedding();
+  const { data, isInvitationOpened } = useWedding();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -16,11 +16,16 @@ export const Navbar: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const visiblePhotosCount = (data.gallery || []).filter((p) => !p.hidden).length;
+  const maxDisplay =
+    typeof data.galleryDisplayLimit === 'number' ? data.galleryDisplayLimit : visiblePhotosCount;
+  const showGallery = Math.min(visiblePhotosCount, maxDisplay) > 0;
+
   const navLinks = [
     { label: 'The Couple', href: '#couple' },
     { label: 'Ceremony', href: '#ceremony' },
     { label: 'Events', href: '#events' },
-    { label: 'Gallery', href: '#gallery' },
+    ...(showGallery ? [{ label: 'Gallery', href: '#gallery' }] : []),
     { label: 'Countdown', href: '#countdown' },
     { label: 'Calendar', href: '#calendar' },
     { label: 'Invitation', href: '#invitation' },
@@ -73,37 +78,50 @@ export const Navbar: React.FC = () => {
         </a>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-7">
-          {navLinks.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              onClick={(e) => handleNavClick(e, link.href)}
-              className="text-[10px] uppercase tracking-[0.25em] font-medium text-[#FAF6F0]/90 hover:text-[#D4AF37] transition-colors relative py-1 group cursor-pointer"
-            >
-              {link.label}
-              <span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-[#D4AF37] transition-all duration-300 group-hover:w-full" />
-            </a>
-          ))}
-        </nav>
+        {isInvitationOpened ? (
+          <nav className="hidden lg:flex items-center gap-7">
+            {navLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                onClick={(e) => handleNavClick(e, link.href)}
+                className="text-[10px] uppercase tracking-[0.25em] font-medium text-[#FAF6F0]/90 hover:text-[#D4AF37] transition-colors relative py-1 group cursor-pointer"
+              >
+                {link.label}
+                <span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-[#D4AF37] transition-all duration-300 group-hover:w-full" />
+              </a>
+            ))}
+          </nav>
+        ) : (
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="text-[11px] font-devanagari text-[#D4AF37] tracking-wider">
+              ॥ शुभ विवाह ॥
+            </span>
+            <span className="text-[10px] tracking-[0.2em] uppercase text-[#FAF6F0]/70 font-serif-cormorant italic">
+              Formal Wedding Invitation
+            </span>
+          </div>
+        )}
 
         {/* Right Action Icons: Audio & Mobile Menu */}
         <div className="flex items-center gap-2 shrink-0">
           <WeddingAudio />
 
           {/* Mobile menu toggle */}
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden p-1.5 rounded-lg border border-[#D4AF37]/60 text-[#FAF6F0] hover:bg-[#5E121E] transition-colors cursor-pointer"
-            aria-label="Toggle navigation menu"
-          >
-            {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          </button>
+          {isInvitationOpened && (
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="lg:hidden p-1.5 rounded-lg border border-[#D4AF37]/60 text-[#FAF6F0] hover:bg-[#5E121E] transition-colors cursor-pointer"
+              aria-label="Toggle navigation menu"
+            >
+              {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
+          )}
         </div>
       </div>
 
       {/* Mobile dropdown menu */}
-      {isMobileMenuOpen && (
+      {isInvitationOpened && isMobileMenuOpen && (
         <div className="lg:hidden bg-[#4E0B14] border-t border-[#B89352]/30 px-6 py-5 space-y-3.5 shadow-xl">
           {navLinks.map((link) => (
             <a

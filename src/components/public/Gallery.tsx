@@ -6,6 +6,22 @@ export const Gallery: React.FC = () => {
   const { data } = useWedding();
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
 
+  // Filter out any photos marked as hidden by the admin
+  const visiblePhotos = (data.gallery || []).filter((p) => !p.hidden);
+
+  // Admin decided limit on how many photos to display (can be 0)
+  const maxDisplay =
+    typeof data.galleryDisplayLimit === 'number'
+      ? Math.max(0, data.galleryDisplayLimit)
+      : visiblePhotos.length;
+
+  const photosToDisplay = visiblePhotos.slice(0, maxDisplay);
+
+  // If admin set 0 photos, or all photos are hidden, hide the gallery section completely
+  if (photosToDisplay.length === 0) {
+    return null;
+  }
+
   const openLightbox = (index: number) => {
     setSelectedPhotoIndex(index);
   };
@@ -17,7 +33,7 @@ export const Gallery: React.FC = () => {
   const nextPhoto = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (selectedPhotoIndex !== null) {
-      setSelectedPhotoIndex((selectedPhotoIndex + 1) % data.gallery.length);
+      setSelectedPhotoIndex((selectedPhotoIndex + 1) % photosToDisplay.length);
     }
   };
 
@@ -25,9 +41,23 @@ export const Gallery: React.FC = () => {
     e.stopPropagation();
     if (selectedPhotoIndex !== null) {
       setSelectedPhotoIndex(
-        (selectedPhotoIndex - 1 + data.gallery.length) % data.gallery.length
+        (selectedPhotoIndex - 1 + photosToDisplay.length) % photosToDisplay.length
       );
     }
+  };
+
+  // Determine grid layout based on number of visible photos
+  const getGridClasses = () => {
+    if (photosToDisplay.length === 1) {
+      return 'grid grid-cols-1 max-w-md mx-auto';
+    }
+    if (photosToDisplay.length === 2) {
+      return 'grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto';
+    }
+    if (photosToDisplay.length === 3) {
+      return 'grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-4xl mx-auto';
+    }
+    return 'grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8 max-w-4xl mx-auto';
   };
 
   return (
@@ -45,9 +75,9 @@ export const Gallery: React.FC = () => {
         </p>
       </div>
 
-      {/* 2x2 Photo Grid - Dominant Photography with Burgundy Card Borders */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8 max-w-4xl mx-auto">
-        {data.gallery.slice(0, 4).map((photo, index) => (
+      {/* Dynamic Photo Grid */}
+      <div className={getGridClasses()}>
+        {photosToDisplay.map((photo, index) => (
           <div
             key={photo.id || index}
             onClick={() => openLightbox(index)}
@@ -84,7 +114,7 @@ export const Gallery: React.FC = () => {
       </div>
 
       {/* Lightbox Modal */}
-      {selectedPhotoIndex !== null && (
+      {selectedPhotoIndex !== null && photosToDisplay[selectedPhotoIndex] && (
         <div
           onClick={closeLightbox}
           className="fixed inset-0 z-50 bg-[#381A20]/90 backdrop-blur-sm flex items-center justify-center p-4"
@@ -100,34 +130,38 @@ export const Gallery: React.FC = () => {
               <X className="w-4 h-4" />
             </button>
 
-            <button
-              onClick={prevPhoto}
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white/90 text-[#5E121E] hover:bg-[#5E121E] hover:text-white transition-colors flex items-center justify-center shadow-xs cursor-pointer"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
+            {photosToDisplay.length > 1 && (
+              <>
+                <button
+                  onClick={prevPhoto}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white/90 text-[#5E121E] hover:bg-[#5E121E] hover:text-white transition-colors flex items-center justify-center shadow-xs cursor-pointer"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
 
-            <button
-              onClick={nextPhoto}
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white/90 text-[#5E121E] hover:bg-[#5E121E] hover:text-white transition-colors flex items-center justify-center shadow-xs cursor-pointer"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+                <button
+                  onClick={nextPhoto}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white/90 text-[#5E121E] hover:bg-[#5E121E] hover:text-white transition-colors flex items-center justify-center shadow-xs cursor-pointer"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </>
+            )}
 
             <div className="max-h-[75vh] w-full bg-[#FAF6F0] flex items-center justify-center">
               <img
-                src={data.gallery[selectedPhotoIndex]?.url}
-                alt={data.gallery[selectedPhotoIndex]?.title}
+                src={photosToDisplay[selectedPhotoIndex]?.url}
+                alt={photosToDisplay[selectedPhotoIndex]?.title}
                 className="max-h-[75vh] w-auto object-contain mx-auto"
               />
             </div>
 
             <div className="p-5 bg-white border-t border-[#E8DFC8] text-center">
               <span className="text-[10px] uppercase tracking-[0.25em] text-[#5E121E] font-semibold block mb-1">
-                {data.gallery[selectedPhotoIndex]?.title}
+                {photosToDisplay[selectedPhotoIndex]?.title}
               </span>
               <p className="font-serif-cormorant text-lg text-[#381A20] italic">
-                "{data.gallery[selectedPhotoIndex]?.caption}"
+                "{photosToDisplay[selectedPhotoIndex]?.caption}"
               </p>
             </div>
           </div>

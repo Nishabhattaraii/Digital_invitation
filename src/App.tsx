@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { WeddingProvider } from './context/WeddingContext';
+import { WeddingProvider, useWedding } from './context/WeddingContext';
 import { Navbar } from './components/public/Navbar';
 import { Hero } from './components/public/Hero';
 import { Couple } from './components/public/Couple';
@@ -14,6 +14,7 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ToastContainer } from './components/common/ToastContainer';
 
 export function AppContent() {
+  const { isInvitationOpened } = useWedding();
   const [currentPath, setCurrentPath] = useState(() => window.location.pathname);
 
   useEffect(() => {
@@ -32,6 +33,30 @@ export function AppContent() {
 
   const isAdminRoute = currentPath === '/admin' || currentPath.startsWith('/admin/');
 
+  // Ensure page always starts at the top and does not auto-scroll on page load
+  useEffect(() => {
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Lock scrolling on public view until the user clicks "OPEN INVITATION"
+  useEffect(() => {
+    if (!isAdminRoute && !isInvitationOpened) {
+      window.scrollTo(0, 0);
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, [isAdminRoute, isInvitationOpened]);
+
   // Dedicated /admin SPA Route
   if (isAdminRoute) {
     return (
@@ -44,14 +69,18 @@ export function AppContent() {
 
   // Public Wedding Invitation (Zero admin buttons, purely elegant)
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--wedding-bg)] text-stone-800 relative selection:bg-[var(--primary-red)] selection:text-white">
+    <div
+      className={`min-h-screen flex flex-col bg-[var(--wedding-bg)] text-stone-800 relative selection:bg-[var(--primary-red)] selection:text-white ${
+        !isInvitationOpened ? 'h-screen max-h-screen overflow-hidden' : ''
+      }`}
+    >
       {/* Decorative ambient top border */}
       <div className="h-1.5 w-full bg-gradient-to-r from-[var(--primary-red)] via-[var(--primary-gold)] to-[var(--primary-red)]" />
 
       {/* Navigation Header */}
       <Navbar />
 
-      {/* Main Public Invitation Flow */}
+      {/* Main Public Invitation Flow - Bride & Groom section is kept below initial invitation view */}
       <main className="flex-1">
         <Hero />
         <Couple />
