@@ -110,16 +110,20 @@ export const WeddingAudio: React.FC = () => {
     setIsAudioPlaying(true);
 
     if (youtubeId && youtubeIframeRef.current?.contentWindow) {
-      if (startTime > 0) {
+      try {
+        if (startTime > 0) {
+          youtubeIframeRef.current.contentWindow.postMessage(
+            JSON.stringify({ event: 'command', func: 'seekTo', args: [startTime, true] }),
+            '*'
+          );
+        }
         youtubeIframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ event: 'command', func: 'seekTo', args: [startTime, true] }),
+          JSON.stringify({ event: 'command', func: 'playVideo', args: [] }),
           '*'
         );
+      } catch (err) {
+        console.warn('Error sending playVideo to YouTube iframe:', err);
       }
-      youtubeIframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ event: 'command', func: 'playVideo', args: [] }),
-        '*'
-      );
     } else if (isDirectAudio && audioRef.current) {
       if (
         audioRef.current.currentTime < startTime ||
@@ -128,7 +132,6 @@ export const WeddingAudio: React.FC = () => {
         audioRef.current.currentTime = startTime;
       }
       audioRef.current.play().catch(() => {
-        // Fallback to synthesizer if direct audio load blocked
         startSynthesizer();
       });
     } else {
@@ -142,10 +145,12 @@ export const WeddingAudio: React.FC = () => {
     setIsAudioPlaying(false);
 
     if (youtubeId && youtubeIframeRef.current?.contentWindow) {
-      youtubeIframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }),
-        '*'
-      );
+      try {
+        youtubeIframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }),
+          '*'
+        );
+      } catch {}
     }
 
     if (audioRef.current) {
@@ -163,45 +168,46 @@ export const WeddingAudio: React.FC = () => {
     }
   };
 
-  // Autoplay immediately on website load, with fallback on very first user gesture if restricted by browser
+  // Autoplay immediately on website load with staggered triggers as the iframe initializes
   useEffect(() => {
     let unmounted = false;
 
-    const tryInitialPlay = () => {
+    const triggerPlay = () => {
       if (!unmounted && !userManuallyPausedRef.current) {
         handlePlay();
       }
     };
 
-    // Attempt right away
-    const timer = setTimeout(tryInitialPlay, 400);
+    // Staggered triggers to catch the iframe at the earliest moment it becomes ready
+    const delays = [150, 400, 800, 1400, 2200, 3200, 4500];
+    const timers = delays.map((ms) => setTimeout(triggerPlay, ms));
 
-    // If browser blocks unprompted audio autoplay, start smoothly on first touch/click/scroll
+    // Also trigger on any window focus, visibilitychange or first interaction as instant fallback
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        triggerPlay();
+      }
+    };
     const onFirstUserAction = () => {
-      cleanupListeners();
       if (!userManuallyPausedRef.current) {
         handlePlay();
       }
     };
 
-    const cleanupListeners = () => {
-      window.removeEventListener('pointerdown', onFirstUserAction);
-      window.removeEventListener('touchstart', onFirstUserAction);
-      window.removeEventListener('scroll', onFirstUserAction);
-      window.removeEventListener('keydown', onFirstUserAction);
-      window.removeEventListener('click', onFirstUserAction);
-    };
-
-    window.addEventListener('pointerdown', onFirstUserAction, { passive: true, once: true });
-    window.addEventListener('touchstart', onFirstUserAction, { passive: true, once: true });
-    window.addEventListener('scroll', onFirstUserAction, { passive: true, once: true });
-    window.addEventListener('keydown', onFirstUserAction, { passive: true, once: true });
-    window.addEventListener('click', onFirstUserAction, { passive: true, once: true });
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', triggerPlay);
+    window.addEventListener('pointerdown', onFirstUserAction, { passive: true });
+    window.addEventListener('touchstart', onFirstUserAction, { passive: true });
+    window.addEventListener('scroll', onFirstUserAction, { passive: true });
 
     return () => {
       unmounted = true;
-      clearTimeout(timer);
-      cleanupListeners();
+      timers.forEach(clearTimeout);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', triggerPlay);
+      window.removeEventListener('pointerdown', onFirstUserAction);
+      window.removeEventListener('touchstart', onFirstUserAction);
+      window.removeEventListener('scroll', onFirstUserAction);
     };
   }, [handlePlay]);
 
@@ -225,6 +231,14 @@ export const WeddingAudio: React.FC = () => {
       if (typeof event.data === 'string') {
         try {
           const parsed = JSON.parse(event.data);
+
+          // If YouTube announces it is ready or loaded, immediately command play
+          if (parsed.event === 'onReady' || parsed.event === 'initialDelivery') {
+            if (!userManuallyPausedRef.current) {
+              handlePlay();
+            }
+          }
+
           if (parsed.event === 'infoDelivery' && parsed.info) {
             if (parsed.info.playerState === 1) {
               setIsPlaying(true);
@@ -233,7 +247,7 @@ export const WeddingAudio: React.FC = () => {
               setIsPlaying(false);
               setIsAudioPlaying(false);
             } else if (parsed.info.playerState === 0) {
-              // Video ended or reached 'end' parameter -> loop back to startTime!
+              // Video ended -> loop back to startTime!
               if (youtubeIframeRef.current?.contentWindow) {
                 youtubeIframeRef.current.contentWindow.postMessage(
                   JSON.stringify({ event: 'command', func: 'seekTo', args: [startTime, true] }),
@@ -254,7 +268,7 @@ export const WeddingAudio: React.FC = () => {
 
     window.addEventListener('message', handleWindowMessage);
     return () => window.removeEventListener('message', handleWindowMessage);
-  }, [startTime, setIsAudioPlaying]);
+  }, [startTime, handlePlay, setIsAudioPlaying]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -266,32 +280,51 @@ export const WeddingAudio: React.FC = () => {
     };
   }, [stopSynthesizer]);
 
-  // Construct YouTube URL with start and end times for trimming + autoplay
+  // Construct YouTube URL with start and end times for trimming + immediate autoplay
   const ytEmbedSrc = youtubeId
-    ? `https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&autoplay=1&origin=${encodeURIComponent(
-        window.location.origin
-      )}&playsinline=1${startTime > 0 ? `&start=${Math.floor(startTime)}` : ''}${
-        endTime > startTime ? `&end=${Math.floor(endTime)}` : ''
-      }`
+    ? `https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&autoplay=1&playsinline=1&controls=0&fs=0&loop=1&playlist=${youtubeId}${
+        startTime > 0 ? `&start=${Math.floor(startTime)}` : ''
+      }${endTime > startTime ? `&end=${Math.floor(endTime)}` : ''}`
     : '';
 
   return (
     <div className="relative inline-flex items-center">
-      {/* Hidden YouTube Iframe Audio Player with Cut/Trim & initial autoplay support */}
+      {/* 
+        YouTube Audio Player Container:
+        Using 240x240 size positioned just offscreen with 0.001 opacity.
+        Crucial: Browsers (Chrome/Safari) throttle or freeze iframes with 1x1 or 0x0 dimensions,
+        which stops autoplay. Giving it valid dimensions ensures immediate playback on link opening.
+      */}
       {youtubeId && (
-        <iframe
-          ref={youtubeIframeRef}
-          key={`yt-${youtubeId}-${startTime}-${endTime}`}
-          title="Wedding Music Player"
-          src={ytEmbedSrc}
-          onLoad={() => {
-            if (!userManuallyPausedRef.current) {
-              handlePlay();
-            }
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            bottom: '-280px',
+            right: '-280px',
+            width: '240px',
+            height: '240px',
+            opacity: 0.001,
+            pointerEvents: 'none',
+            zIndex: -9999,
+            overflow: 'hidden',
           }}
-          className="absolute -top-[9999px] -left-[9999px] w-1 h-1 opacity-0 pointer-events-none"
-          allow="autoplay"
-        />
+        >
+          <iframe
+            ref={youtubeIframeRef}
+            key={`yt-${youtubeId}-${startTime}-${endTime}`}
+            title="Wedding Music Player"
+            src={ytEmbedSrc}
+            width="240"
+            height="240"
+            allow="autoplay *; encrypted-media *; fullscreen *"
+            onLoad={() => {
+              if (!userManuallyPausedRef.current) {
+                handlePlay();
+              }
+            }}
+          />
+        </div>
       )}
 
       {/* Hidden HTML5 Audio Element for Direct URLs with Cut/Trim loop support */}
