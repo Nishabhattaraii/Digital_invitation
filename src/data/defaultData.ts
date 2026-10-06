@@ -109,8 +109,8 @@ export const defaultWeddingData: WeddingData = {
     },
     {
       id: 'ceremony-photo',
-      title: 'Sacred Rituals',
-      caption: 'Celebrating sacred union with Vedic rituals and family blessings',
+      title: 'Joyful Moments',
+      caption: 'Celebrating our love, joy, and companionship with family blessings',
       url: '/images/couple-2.jpg',
       hidden: false,
     },
