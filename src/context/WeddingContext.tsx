@@ -351,6 +351,7 @@ export const WeddingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updateData(() => parsed);
       showToast('Configuration restored successfully!');
       return true;
+      
     } catch (e) {
       showToast('Invalid JSON backup file', 'error');
       return false;
